@@ -1,0 +1,290 @@
+<!-- templates/reports.html -->
+{% extends "layouts/main.html" %}
+
+{% block title %}Rapports - Système de Gestion de Matériel{% endblock %}
+
+{% block head_extra %}
+<style>
+    .reports-container {
+        padding: 20px;
+    }
+    
+    .report-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 20px;
+        transition: transform 0.3s ease;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .report-icon {
+        font-size: 2rem;
+        color: #3498db;
+        margin-bottom: 10px;
+    }
+    
+    .report-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .report-description {
+        color: #666;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+    }
+    
+    .report-actions {
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .date-range {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        align-items: center;
+    }
+    
+    .date-input {
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    
+    .btn-sm {
+        padding: 5px 10px;
+        font-size: 0.9rem;
+    }
+    
+    .reports-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .filter-container {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .filter-label {
+        font-weight: bold;
+    }
+    
+    .report-iframe {
+        width: 100%;
+        height: 600px;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    #reportModal .modal-dialog {
+        max-width: 90%;
+        height: 90%;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 2s linear infinite;
+        margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="reports-container">
+    <h1 class="section-title">Rapports</h1>
+    
+    <div class="filter-container">
+        <span class="filter-label">Période:</span>
+        <div class="date-range">
+            <input type="date" id="startDate" class="date-input" value="2025-01-01">
+            <span>à</span>
+            <input type="date" id="endDate" class="date-input" value="2025-05-01">
+            <button class="btn btn-sm" onclick="updateDateRange()">Appliquer</button>
+        </div>
+    </div>
+    
+    <div class="reports-grid">
+        <!-- Rapport d'utilisation du matériel -->
+        <div class="report-card">
+            <div class="report-icon">📊</div>
+            <div class="report-title">Rapport d'utilisation du matériel</div>
+            <div class="report-description">
+                Vue d'ensemble de l'utilisation du matériel informatique, y compris les allocations et les retours.
+            </div>
+            <div class="report-actions">
+                <button class="btn" onclick="generateReport('usage')">Générer</button>
+                <button class="btn btn-sm" onclick="exportReport('usage', 'pdf')">PDF</button>
+                <button class="btn btn-sm" onclick="exportReport('usage', 'json')">JSON</button>
+            </div>
+        </div>
+        
+        <!-- Rapport d'inventaire -->
+        <div class="report-card">
+            <div class="report-icon">📦</div>
+            <div class="report-title">Rapport d'inventaire</div>
+            <div class="report-description">
+                État actuel de l'inventaire, y compris les niveaux de stock et les matériels en stock limité.
+            </div>
+            <div class="report-actions">
+                <button class="btn" onclick="generateReport('inventory')">Générer</button>
+                <button class="btn btn-sm" onclick="exportReport('inventory', 'pdf')">PDF</button>
+                <button class="btn btn-sm" onclick="exportReport('inventory', 'json')">JSON</button>
+            </div>
+        </div>
+        
+        <!-- Rapport d'activité utilisateur -->
+        <div class="report-card">
+            <div class="report-icon">👤</div>
+            <div class="report-title">Rapport d'activité utilisateur</div>
+            <div class="report-description">
+                Activité par utilisateur, y compris les allocations, retours et matériels actuellement alloués.
+            </div>
+            <div class="report-actions">
+                <button class="btn" onclick="generateReport('user', '1')">Générer</button>
+                <button class="btn btn-sm" onclick="exportReport('user', 'pdf', '1')">PDF</button>
+                <button class="btn btn-sm" onclick="exportReport('user', 'json', '1')">JSON</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour afficher le rapport -->
+    <div id="reportModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+        <div id="reportModal" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 1200px; height: 80%; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee;">
+                <h3 id="reportModalTitle" style="margin: 0;">Rapport</h3>
+                <button style="background: none; border: none; font-size: 1.5rem; cursor: pointer;" onclick="closeReportModal()">&times;</button>
+            </div>
+            <div style="padding: 20px; height: calc(100% - 70px); overflow: auto;">
+                <div id="reportLoading" class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Génération du rapport en cours...</p>
+                </div>
+                <iframe id="reportFrame" class="report-iframe" style="display: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Dates par défaut
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date();
+        const fourMonthsAgo = new Date();
+        fourMonthsAgo.setMonth(today.getMonth() - 4);
+        
+        document.getElementById('startDate').valueAsDate = fourMonthsAgo;
+        document.getElementById('endDate').valueAsDate = today;
+    });
+    
+    // Mettre à jour la plage de dates
+    function updateDateRange() {
+        // À implémenter: rafraîchir les données avec la nouvelle plage de dates
+        alert('Plage de dates mise à jour');
+    }
+    
+    // Générer un rapport
+    function generateReport(reportType, userId) {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        let apiUrl = '';
+        let reportTitle = '';
+        
+        switch(reportType) {
+            case 'usage':
+                apiUrl = `/api/reports/usage?start_date=${startDate}&end_date=${endDate}`;
+                reportTitle = 'Rapport d\'utilisation du matériel';
+                break;
+            case 'inventory':
+                apiUrl = `/api/inventory/report`;
+                reportTitle = 'Rapport d\'inventaire';
+                break;
+            case 'user':
+                apiUrl = `/api/user/${userId}/report?start_date=${startDate}&end_date=${endDate}`;
+                reportTitle = 'Rapport d\'activité utilisateur';
+                break;
+            default:
+                alert('Type de rapport non reconnu');
+                return;
+        }
+        
+        // Afficher le modal
+        document.getElementById('reportModalTitle').textContent = reportTitle;
+        document.getElementById('reportModalBackdrop').style.display = 'block';
+        document.getElementById('reportLoading').style.display = 'block';
+        document.getElementById('reportFrame').style.display = 'none';
+        
+        // Simuler le chargement du rapport (dans une implémentation réelle, charger le rapport depuis l'API)
+        setTimeout(function() {
+            document.getElementById('reportLoading').style.display = 'none';
+            document.getElementById('reportFrame').style.display = 'block';
+            document.getElementById('reportFrame').src = apiUrl;
+        }, 1500);
+    }
+    
+    // Exporter un rapport
+    function exportReport(reportType, format, userId) {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        let apiUrl = '';
+        
+        switch(reportType) {
+            case 'usage':
+                apiUrl = `/api/reports/usage?start_date=${startDate}&end_date=${endDate}&format=${format}`;
+                break;
+            case 'inventory':
+                apiUrl = `/api/inventory/report?format=${format}`;
+                break;
+            case 'user':
+                apiUrl = `/api/user/${userId}/report?start_date=${startDate}&end_date=${endDate}&format=${format}`;
+                break;
+            default:
+                alert('Type de rapport non reconnu');
+                return;
+        }
+        
+        if (format === 'pdf') {
+            // Dans une implémentation réelle, cela déclencherait le téléchargement d'un PDF
+            alert('Téléchargement du PDF (simulation)');
+        } else if (format === 'json') {
+            window.open(apiUrl, '_blank');
+        }
+    }
+    
+    // Fermer le modal
+    function closeReportModal() {
+        document.getElementById('reportModalBackdrop').style.display = 'none';
+        document.getElementById('reportFrame').src = '';
+    }
+</script>
+{% endblock %}

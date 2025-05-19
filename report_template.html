@@ -1,0 +1,336 @@
+<!-- templates/reports/report_template.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - Système de Gestion de Matériel</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .report-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .report-header {
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .report-title {
+            color: #3498db;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .report-metadata {
+            color: #777;
+            font-size: 14px;
+        }
+        
+        .report-summary {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .report-summary h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .summary-item {
+            text-align: center;
+        }
+        
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .summary-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .report-details h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .report-table th {
+            background-color: #f8f9fa;
+            text-align: left;
+            padding: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .report-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .report-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .report-footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        
+        .chart-container {
+            margin: 20px 0;
+            height: 300px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .badge-success {
+            background-color: #2ecc71;
+        }
+        
+        .badge-warning {
+            background-color: #f39c12;
+        }
+        
+        .badge-danger {
+            background-color: #e74c3c;
+        }
+        
+        .badge-info {
+            background-color: #3498db;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #777;
+            font-style: italic;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            
+            .report-container {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="report-container">
+        <div class="report-header">
+            <h1 class="report-title">{{title|default('Rapport')}}</h1>
+            <div class="report-metadata">
+                <p>Période: {{period|default('Non spécifiée')}}</p>
+                <p>Généré le: {{date_generated|default('Aujourd\'hui')}}</p>
+            </div>
+        </div>
+        
+        <div class="report-summary">
+            <h2>Résumé</h2>
+            <div class="summary-grid">
+                {% if summary and summary.items %}
+                    {% for key, value in summary.items() %}
+                    <div class="summary-item">
+                        <div class="summary-value">{{value}}</div>
+                        <div class="summary-label">{{key}}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-data">Aucune donnée de résumé disponible</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="report-details">
+            <h2>Détails par type de matériel</h2>
+            
+            {% if details and details|length > 0 %}
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Allocations</th>
+                        <th>Retours</th>
+                        <th>Pourcentage</th>
+                        <th>Le plus utilisé</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in details %}
+                    <tr>
+                        <td>
+                            <span class="badge badge-info">{{item.type|default('Non spécifié')}}</span>
+                        </td>
+                        <td>{{item.allocations|default(0)}}</td>
+                        <td>{{item.returns|default(0)}}</td>
+                        <td>{{item.percentage|default(0)}}%</td>
+                        <td>{{item.most_used|default('Non spécifié')}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="chart-container">
+                <!-- Placeholder pour un graphique -->
+                <div id="chart"></div>
+            </div>
+            {% else %}
+            <div class="no-data">Aucune donnée détaillée disponible pour cette période</div>
+            {% endif %}
+            
+            {% if low_stock_items and low_stock_items|length > 0 %}
+            <h2>Matériels en stock limité</h2>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Disponible</th>
+                        <th>Total</th>
+                        <th>Pourcentage</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in low_stock_items %}
+                    <tr>
+                        <td>{{item.name|default('Non spécifié')}}</td>
+                        <td>{{item.available|default(0)}}</td>
+                        <td>{{item.total|default(0)}}</td>
+                        <td>{% if item.total and item.total > 0 %}{{((item.available / item.total) * 100)|round(1)}}{% else %}0{% endif %}%</td>
+                        <td>
+                            {% if item.total and item.total > 0 %}
+                                {% if (item.available / item.total) < 0.1 %}
+                                <span class="badge badge-danger">Critique</span>
+                                {% elif (item.available / item.total) < 0.2 %}
+                                <span class="badge badge-warning">Bas</span>
+                                {% else %}
+                                <span class="badge badge-success">OK</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-danger">Indisponible</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+        
+        <div class="report-footer">
+            <p>Système de Gestion de Matériel - Rapport généré automatiquement</p>
+            <p>© 2025 Région Réunion</p>
+        </div>
+    </div>
+    
+    <!-- Script pour générer les données du graphique, entièrement séparé des templates Jinja -->
+    <script>
+    // Attendre que le DOM soit chargé
+    document.addEventListener('DOMContentLoaded', function() {
+        // Vérifier si l'élément chart existe (créé seulement si des détails sont disponibles)
+        const chartElement = document.getElementById('chart');
+        if (!chartElement) return;
+        
+        // Données pré-générées par le backend et injectées comme JSON
+        const chartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Allocations',
+                    data: [],
+                    backgroundColor: '#3498db'
+                },
+                {
+                    label: 'Retours',
+                    data: [],
+                    backgroundColor: '#2ecc71'
+                }
+            ]
+        };
+        
+        // Récupérer les données depuis des éléments de données cachés, générés par Jinja
+        {% if details and details|length > 0 %}
+            // Utiliser les attributs data pour stocker les données du graphique
+            {% for item in details %}
+                // Ajouter chaque élément aux tableaux de données
+                chartData.labels.push("{{item.type|default('Non spécifié')}}");
+                chartData.datasets[0].data.push({{item.allocations|default(0)}});
+                chartData.datasets[1].data.push({{item.returns|default(0)}});
+            {% endfor %}
+            
+            // Créer le graphique avec Chart.js
+            const ctx = chartElement.getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        {% endif %}
+    });
+    </script>
+</body>
+</html>

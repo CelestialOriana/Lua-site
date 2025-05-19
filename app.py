@@ -1,3 +1,5 @@
+# Intégration des modules Lua dans app.py
+
 from flask import Flask, render_template, jsonify, redirect, url_for, request
 import os
 import sys
@@ -5,6 +7,7 @@ import traceback
 from dotenv import load_dotenv
 import logging
 import json
+from lua_integration import init_lua, lua_integration
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, 
@@ -18,124 +21,118 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-this')
 
-# Données factices directement dans le fichier Python
-MATERIALS = [
-    {"id": 1, "name": "ThinkCentre Gen 2", "type": "desktop", "available": 5, "total": 10, "description": "Ordinateur de bureau ThinkCentre Gen 2"},
-    {"id": 2, "name": "ThinkCentre Gen 3", "type": "desktop", "available": 3, "total": 8, "description": "Ordinateur de bureau ThinkCentre Gen 3"},
-    {"id": 3, "name": "ThinkCentre Gen 4", "type": "desktop", "available": 7, "total": 15, "description": "Ordinateur de bureau ThinkCentre Gen 4"},
-    {"id": 4, "name": "ThinkCentre Gen 5", "type": "desktop", "available": 2, "total": 6, "description": "Ordinateur de bureau ThinkCentre Gen 5"},
-    {"id": 5, "name": "ThinkPad X1", "type": "laptop", "available": 4, "total": 10, "description": "Ordinateur portable ThinkPad X1"},
-    {"id": 6, "name": "ThinkPad T14", "type": "laptop", "available": 6, "total": 12, "description": "Ordinateur portable ThinkPad T14"}
-]
+# Initialiser l'intégration Lua
+lua = init_lua(app)
 
-# Calcul du total
-def calculate_total_materials():
-    total = 0
-    for material in MATERIALS:
-        total += material["total"]
-    return total
+# Routes existantes préservées...
+# [Code existant de app.py...]
 
-@app.route("/")
-def index():
-    try:
-        welcome_message = "Bienvenue dans le Système de Gestion de Matériel"
-        return render_template('index.html', message=welcome_message)
-    except Exception as e:
-        logger.error(f"Erreur sur la page d'accueil: {e}")
-        traceback.print_exc()
-        return render_template('error.html', error="Une erreur est survenue sur la page d'accueil")
+# Nouvelles routes utilisant Lua
 
-@app.route("/dashboard")
-def dashboard():
-    try:
-        materials = MATERIALS
-        total_materials = calculate_total_materials()
-        return render_template('dashboard.html', 
-                              materials=materials, 
-                              total_materials=total_materials)
-    except Exception as e:
-        logger.error(f"Erreur sur le dashboard: {e}")
-        traceback.print_exc()
-        error_details = f"Type d'erreur: {type(e).__name__}, Message: {str(e)}"
-        return render_template('error.html', error=f"Une erreur est survenue lors du chargement du tableau de bord", message=error_details)
-
-@app.route("/about")
-def about():
-    return render_template('about.html')
-
-@app.route("/stage")
-def stage():
-    # Vérifier quel template existe réellement
-    template_name = 'stage.html'
+@app.route("/api/allocate", methods=["POST"])
+def allocate_material():
+    """Route pour allouer un matériel à un utilisateur."""
+    data = request.json
+    material_id = data.get('material_id')
+    user_id = data.get('user_id')
+    quantity = data.get('quantity', 1)
     
-    # Si stage.html n'existe pas mais stage-template.html existe, utiliser ce dernier
-    if not os.path.exists(os.path.join(app.template_folder, template_name)) and \
-       os.path.exists(os.path.join(app.template_folder, 'stage-template.html')):
-        template_name = 'stage-template.html'
-    
-    try:
-        return render_template(template_name)
-    except Exception as e:
-        logger.error(f"Erreur sur la page de stage: {e}")
-        return render_template('error.html', error="La page de stage n'est pas disponible pour le moment")
-
-@app.route("/api/materials")
-def api_materials():
-    try:
-        return jsonify(MATERIALS)
-    except Exception as e:
-        logger.error(f"Erreur API matériels: {e}")
-        return jsonify({"error": "Une erreur est survenue"}), 500
-
-# Route pour afficher les informations de débogage
-@app.route("/debug")
-def debug_info():
-    if not app.debug:
-        return redirect(url_for('index'))
-    
-    debug_data = {
-        "Python Version": sys.version,
-        "Flask Version": Flask.__version__,
-        "Template Folder": app.template_folder,
-        "Static Folder": app.static_folder,
-        "Working Directory": os.getcwd(),
-        "Templates Available": os.listdir(app.template_folder) if os.path.exists(app.template_folder) else [],
-        "Static Files Available": os.listdir(app.static_folder) if os.path.exists(app.static_folder) else [],
-        "Materials Data": MATERIALS
+    # Créer le contexte pour le moteur de règles
+    context = {
+        'user_id': user_id,
+        'user_role': 'standard',  # À récupérer d'une DB en réalité
+        'user_allocation_count': lua.call_lua_function('inventory_manager', 'get_user_transactions', user_id),
+        'material_id': material_id,
+        'quantity': quantity
     }
     
-    return render_template('debug.html', debug_data=debug_data)
-
-# Gestion des erreurs
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('error.html', error="404", message="La page que vous cherchez semble avoir été emportée par les vagues ou n'a jamais existé."), 404
-
-@app.errorhandler(500)
-def server_error(e):
-    return render_template('error.html', error="500", message="Une erreur est survenue sur le serveur. Nos équipes techniques ont été informées."), 500
-
-# Vérifier la disponibilité des templates au démarrage
-def check_templates():
-    templates_to_check = ['index.html', 'dashboard.html', 'about.html', 'error.html']
-    missing_templates = []
+    # Vérifier les règles
+    validate_result = lua.call_lua_function('rules_engine', 'validate', 'material_allocation', context)
+    success, message = validate_result if isinstance(validate_result, tuple) else (validate_result, None)
     
-    for template in templates_to_check:
-        if not os.path.exists(os.path.join(app.template_folder, template)):
-            missing_templates.append(template)
+    if not success:
+        return jsonify({"success": False, "message": message}), 400
     
-    if missing_templates:
-        logger.warning(f"Templates manquants: {', '.join(missing_templates)}")
+    # Si les règles sont validées, procéder à l'allocation
+    allocation_result = lua.call_lua_function('inventory_manager', 'allocate_material', material_id, user_id, quantity)
+    alloc_success, transaction_id = allocation_result if isinstance(allocation_result, tuple) else (allocation_result, None)
+    
+    if alloc_success:
+        return jsonify({"success": True, "transaction_id": transaction_id})
     else:
-        logger.info("Tous les templates essentiels sont disponibles")
-    
-    # Vérifier si le logo existe
-    logo_path = os.path.join(app.static_folder, 'images', 'region_reunion.png')
-    if os.path.exists(logo_path):
-        logger.info("Logo de la Région Réunion trouvé")
-    else:
-        logger.warning(f"Logo de la Région Réunion non trouvé à l'emplacement: {logo_path}")
+        return jsonify({"success": False, "message": transaction_id}), 400
 
+@app.route("/api/reports/usage", methods=["GET"])
+def material_usage_report():
+    """Route pour générer un rapport d'utilisation du matériel."""
+    start_date = request.args.get('start_date', '2025-01-01')
+    end_date = request.args.get('end_date', '2025-05-01')
+    
+    report = lua.call_lua_function('reports_generator', 'generate_material_usage_report', start_date, end_date)
+    
+    if request.args.get('format') == 'json':
+        return jsonify(report)
+    else:
+        # Utiliser le moteur de template Lua pour rendre le HTML
+        template_path = os.path.join(app.template_folder, 'reports', 'report_template.html')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        
+        rendered_html = lua.call_lua_function('template_engine', 'render', template_content, report)
+        return rendered_html
+
+@app.route("/api/inventory/report", methods=["GET"])
+def inventory_report():
+    """Route pour générer un rapport d'inventaire."""
+    report = lua.call_lua_function('reports_generator', 'generate_inventory_report')
+    
+    if request.args.get('format') == 'json':
+        return jsonify(report)
+    else:
+        # Utiliser le moteur de template Lua pour rendre le HTML
+        template_path = os.path.join(app.template_folder, 'reports', 'report_template.html')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_content = f.read()
+        
+        rendered_html = lua.call_lua_function('template_engine', 'render', template_content, report)
+        return rendered_html
+
+@app.route("/api/notifications", methods=["GET"])
+def get_notifications():
+    """Route pour récupérer les notifications d'un utilisateur."""
+    user_id = request.args.get('user_id')
+    include_read = request.args.get('include_read', 'false').lower() == 'true'
+    
+    if not user_id:
+        return jsonify({"error": "L'ID utilisateur est requis"}), 400
+    
+    notifications = lua.call_lua_function('notification_system', 'get_notifications', user_id, include_read)
+    return jsonify({"notifications": notifications})
+
+@app.route("/api/notifications/mark-read", methods=["POST"])
+def mark_notification_read():
+    """Route pour marquer une notification comme lue."""
+    data = request.json
+    notification_id = data.get('notification_id')
+    
+    if not notification_id:
+        return jsonify({"error": "L'ID de notification est requis"}), 400
+    
+    success = lua.call_lua_function('notification_system', 'mark_as_read', notification_id)
+    return jsonify({"success": success})
+
+@app.route("/api/cache/stats", methods=["GET"])
+def cache_stats():
+    """Route pour obtenir des statistiques sur le cache."""
+    stats = lua.call_lua_function('smart_cache', 'get_stats')
+    return jsonify(stats)
+
+@app.route("/reports")
+def reports_page():
+    """Page des rapports."""
+    return render_template('reports.html')
+
+# Si ce fichier est exécuté directement, lancer l'application
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
@@ -143,10 +140,7 @@ if __name__ == "__main__":
     # Afficher des informations de démarrage
     logger.info(f"Démarrage de l'application sur le port {port}")
     logger.info(f"Mode debug: {debug}")
-    logger.info(f"Dossier des templates: {app.template_folder}")
-    logger.info(f"Dossier statique: {app.static_folder}")
-    
-    # Vérifier les templates et le logo
-    check_templates()
+    logger.info(f"Intégration Lua initialisée")
+    logger.info(f"Modules Lua chargés: {list(lua.modules.keys())}")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
