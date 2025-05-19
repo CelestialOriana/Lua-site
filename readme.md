@@ -152,4 +152,4 @@ Les contributions sont les bienvenues ! N'hésitez pas à soumettre des issues o
 
 ---
 
-Développé avec ❤️ par [Votre Nom]
+Développé avec ❤️ par [Emmanuel ah-hong]
