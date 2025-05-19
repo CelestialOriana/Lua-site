@@ -51,6 +51,10 @@ def dashboard():
 def about():
     return render_template('about.html')
 
+@app.route("/stage")
+def stage():
+    return render_template('stage.html')
+
 @app.route("/api/materials")
 def api_materials():
     try:

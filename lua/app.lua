@@ -5,14 +5,14 @@ package.path = package.path .. ";./lua/?.lua"
 local controller = require("home_controller")
 local Material = require("material")
 
--- Simulation d'une base de données pour les matériels
+-- Simulation d'une base de données pour les matériels avec URLs d'images
 local materials = {
-    {id = 1, name = "ThinkCentre Gen 2", type = "desktop", available = 5, total = 10, description = "Ordinateur de bureau ThinkCentre Gen 2"},
-    {id = 2, name = "ThinkCentre Gen 3", type = "desktop", available = 3, total = 8, description = "Ordinateur de bureau ThinkCentre Gen 3"},
-    {id = 3, name = "ThinkCentre Gen 4", type = "desktop", available = 7, total = 15, description = "Ordinateur de bureau ThinkCentre Gen 4"},
-    {id = 4, name = "ThinkCentre Gen 5", type = "desktop", available = 2, total = 6, description = "Ordinateur de bureau ThinkCentre Gen 5"},
-    {id = 5, name = "ThinkPad X1", type = "laptop", available = 4, total = 10, description = "Ordinateur portable ThinkPad X1"},
-    {id = 6, name = "ThinkPad T14", type = "laptop", available = 6, total = 12, description = "Ordinateur portable ThinkPad T14"}
+    {id = 1, name = "ThinkCentre Gen 2", type = "desktop", available = 5, total = 10, description = "Ordinateur de bureau ThinkCentre Gen 2", image_path = "https://placehold.co/400x300?text=ThinkCentre+Gen+2"},
+    {id = 2, name = "ThinkCentre Gen 3", type = "desktop", available = 3, total = 8, description = "Ordinateur de bureau ThinkCentre Gen 3", image_path = "https://placehold.co/400x300?text=ThinkCentre+Gen+3"},
+    {id = 3, name = "ThinkCentre Gen 4", type = "desktop", available = 7, total = 15, description = "Ordinateur de bureau ThinkCentre Gen 4", image_path = "https://placehold.co/400x300?text=ThinkCentre+Gen+4"},
+    {id = 4, name = "ThinkCentre Gen 5", type = "desktop", available = 2, total = 6, description = "Ordinateur de bureau ThinkCentre Gen 5", image_path = "https://placehold.co/400x300?text=ThinkCentre+Gen+5"},
+    {id = 5, name = "ThinkPad X1", type = "laptop", available = 4, total = 10, description = "Ordinateur portable ThinkPad X1", image_path = "https://placehold.co/400x300?text=ThinkPad+X1"},
+    {id = 6, name = "ThinkPad T14", type = "laptop", available = 6, total = 12, description = "Ordinateur portable ThinkPad T14", image_path = "https://placehold.co/400x300?text=ThinkPad+T14"}
 }
 
 -- Fonction qui retourne les matériels disponibles

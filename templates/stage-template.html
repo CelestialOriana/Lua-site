@@ -1,0 +1,78 @@
+{% extends "layouts/main.html" %}
+
+{% block title %}Mon Stage à la Région Réunion{% endblock %}
+
+{% block content %}
+<section class="stage-section">
+    <h1>Mon Stage à la Région Réunion</h1>
+    
+    <div class="stage-content">
+        <div class="stage-header">
+            <div class="stage-logo">
+                <img src="{{ url_for('static', filename='images/logo-region-reunion.png') }}" alt="Logo Région Réunion">
+            </div>
+            <div class="stage-period">
+                <p><strong>Période :</strong> Mai - Juin 2025</p>
+                <p><strong>Service :</strong> Direction des Systèmes d'Information</p>
+            </div>
+        </div>
+        
+        <div class="stage-info">
+            <h2>Contexte du stage</h2>
+            <p>
+                Dans le cadre de ma formation en Développement Web, j'effectue un stage au sein de la Direction des Systèmes d'Information de la Région Réunion. 
+                L'objectif principal de ce stage est de mettre en place un système de gestion de matériel informatique pour faciliter le suivi et la maintenance 
+                du parc informatique de la collectivité.
+            </p>
+            
+            <div class="supervisor">
+                <h3>Encadrant</h3>
+                <p><strong>Nom :</strong> [Nom de votre tuteur]</p>
+                <p><strong>Fonction :</strong> Responsable du parc informatique</p>
+            </div>
+            
+            <h2>Missions principales</h2>
+            <ul>
+                <li>Développement d'une application web pour la gestion du parc informatique</li>
+                <li>Mise en place d'un système d'inventaire en temps réel</li>
+                <li>Création d'un tableau de bord pour visualiser l'état du parc</li>
+                <li>Intégration d'alertes pour les stocks bas</li>
+                <li>Documentation technique et formation des utilisateurs</li>
+            </ul>
+            
+            <h2>Technologies utilisées</h2>
+            <ul>
+                <li><strong>Backend :</strong> Python (Flask), Lua pour la logique métier</li>
+                <li><strong>Frontend :</strong> HTML5, CSS3, JavaScript</li>
+                <li><strong>Stockage :</strong> Base de données (simulation en mémoire pour ce prototype)</li>
+                <li><strong>Déploiement :</strong> Serveur interne de la Région Réunion</li>
+            </ul>
+            
+            <h2>Compétences développées</h2>
+            <ul>
+                <li>Développement d'applications web avec Flask</li>
+                <li>Intégration de langages de script (Lua) dans une application Python</li>
+                <li>Conception d'interfaces utilisateur intuitives et responsives</li>
+                <li>Gestion de projet technique en milieu professionnel</li>
+                <li>Travail en équipe et communication avec les parties prenantes</li>
+            </ul>
+            
+            <h2>Le projet en images</h2>
+            <div class="stage-gallery">
+                <div class="gallery-item">
+                    <img src="{{ url_for('static', filename='images/dashboard.png') }}" alt="Tableau de bord">
+                    <div class="gallery-caption">Tableau de bord du système</div>
+                </div>
+                <div class="gallery-item">
+                    <img src="{{ url_for('static', filename='images/region-reunion.jpg') }}" alt="Région Réunion">
+                    <div class="gallery-caption">Hôtel de Région Pierre Lagourgue</div>
+                </div>
+                <div class="gallery-item">
+                    <img src="{{ url_for('static', filename='images/dsi.jpg') }}" alt="Service DSI">
+                    <div class="gallery-caption">Direction des Systèmes d'Information</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
