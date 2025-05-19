@@ -2,8 +2,30 @@
 
 -- Charger les modules
 package.path = package.path .. ";./lua/?.lua"
-local controller = require("home_controller")
-local Material = require("material")
+local HomeController = {}
+local Material = {}
+
+-- Fonction pour s'assurer que les modules sont chargés correctement
+local function loadModule(name)
+    local status, module = pcall(function() return require(name) end)
+    if status then
+        return module
+    else
+        print("Erreur lors du chargement du module " .. name .. ": " .. module)
+        return {}
+    end
+end
+
+-- Tenter de charger les modules
+local success, controller = pcall(function() return loadModule("home_controller") end)
+if success then
+    HomeController = controller
+end
+
+local success, materialModule = pcall(function() return loadModule("material") end)
+if success then
+    Material = materialModule
+end
 
 -- Simulation d'une base de données pour les matériels avec URLs d'images
 local materials = {
@@ -31,7 +53,14 @@ end
 
 -- Fonction pour obtenir le message d'accueil depuis le contrôleur
 function get_welcome_message()
-    return controller:index()
+    local msg = "Bienvenue dans le Système de Gestion de Matériel"
+    if HomeController.index then
+        local success, result = pcall(function() return HomeController:index() end)
+        if success then
+            msg = result
+        end
+    end
+    return msg
 end
 
 -- Fonction pour obtenir un matériel par son ID

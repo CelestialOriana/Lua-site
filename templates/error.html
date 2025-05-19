@@ -3,35 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erreur - Système de Gestion de Matériel</title>
+    <title>Erreur {{ error|default('404') }} - Système de Gestion de Matériel</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #2c3e50, #3498db);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .error-container {
+            text-align: center;
+            padding-top: 100px;
+            z-index: 10;
+            position: relative;
+        }
+        
+        .error-title {
+            font-size: 8rem;
+            margin: 0;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+        }
+        
+        .error-subtitle {
+            font-size: 2rem;
+            margin: 10px 0 30px;
+            font-weight: 300;
+        }
+        
+        .error-message {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .back-button {
+            display: inline-block;
+            background-color: white;
+            color: #3498db;
+            padding: 12px 24px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .back-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+            text-decoration: none;
+        }
+        
+        /* Animation de vague */
+        .waves {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 15vh;
+            margin-bottom: -7px;
+            min-height: 100px;
+            max-height: 150px;
+        }
+        
+        .parallax > use {
+            animation: move-forever 25s cubic-bezier(.55,.5,.45,.5) infinite;
+        }
+        
+        .parallax > use:nth-child(1) {
+            animation-delay: -2s;
+            animation-duration: 7s;
+        }
+        
+        .parallax > use:nth-child(2) {
+            animation-delay: -3s;
+            animation-duration: 10s;
+        }
+        
+        .parallax > use:nth-child(3) {
+            animation-delay: -4s;
+            animation-duration: 13s;
+        }
+        
+        .parallax > use:nth-child(4) {
+            animation-delay: -5s;
+            animation-duration: 20s;
+        }
+        
+        @keyframes move-forever {
+            0% {
+                transform: translate3d(-90px,0,0);
+            }
+            100% { 
+                transform: translate3d(85px,0,0);
+            }
+        }
+        
+        /* Animation du code qui disparaît */
+        .code-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        .code-drop {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.7);
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            top: -20px;
+            animation: code-fall linear infinite;
+        }
+        
+        @keyframes code-fall {
+            to {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+        
+        footer {
+            position: relative;
+            z-index: 10;
+            background: transparent;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <nav>
-            <div class="logo">SGM</div>
-            <ul>
-                <li><a href="{{ url_for('index') }}">Accueil</a></li>
-                <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
-                <li><a href="{{ url_for('about') }}">À propos</a></li>
-            </ul>
-        </nav>
-    </header>
-
-    <main>
-        <section class="error-section">
-            <h1>Erreur</h1>
-            <div class="error-content">
-                <p>{{ error }}</p>
-                <a href="{{ url_for('index') }}" class="btn">Retour à l'accueil</a>
-            </div>
-        </section>
-    </main>
+    <div class="code-rain" id="code-rain"></div>
+    
+    <div class="error-container">
+        <h1 class="error-title">{{ error|default('404') }}</h1>
+        <h2 class="error-subtitle">Oups! Page non trouvée</h2>
+        <p class="error-message">{{ message|default("La page que vous cherchez semble avoir été emportée par les vagues ou n'a jamais existé.") }}</p>
+        <a href="{{ url_for('index') }}" class="back-button">Retour à l'accueil</a>
+    </div>
+    
+    <!-- Animation de vague -->
+    <svg class="waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+         viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
+        <defs>
+            <path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
+        </defs>
+        <g class="parallax">
+            <use xlink:href="#gentle-wave" x="48" y="0" fill="rgba(255,255,255,0.7" />
+            <use xlink:href="#gentle-wave" x="48" y="3" fill="rgba(255,255,255,0.5)" />
+            <use xlink:href="#gentle-wave" x="48" y="5" fill="rgba(255,255,255,0.3)" />
+            <use xlink:href="#gentle-wave" x="48" y="7" fill="#fff" />
+        </g>
+    </svg>
 
     <footer>
-        <p>&copy; 2025 Système de Gestion de Matériel</p>
+        <p>&copy; 2025 Système de Gestion de Matériel - Région Réunion</p>
     </footer>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Animation de pluie de code
+        function createCodeRain() {
+            const codeChars = '01';
+            const container = document.getElementById('code-rain');
+            const screenWidth = window.innerWidth;
+            const numberOfDrops = Math.floor(screenWidth / 20); // Une goutte tous les ~20px
+            
+            for (let i = 0; i < numberOfDrops; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'code-drop';
+                drop.style.left = `${Math.random() * 100}%`;
+                drop.style.animationDuration = `${Math.random() * 5 + 3}s`; // Entre 3 et 8 secondes
+                drop.style.opacity = Math.random();
+                
+                // Créer une chaîne aléatoire de 0 et 1
+                let codeText = '';
+                const codeLength = Math.floor(Math.random() * 8) + 3; // Entre 3 et 10 caractères
+                for (let j = 0; j < codeLength; j++) {
+                    codeText += codeChars.charAt(Math.floor(Math.random() * codeChars.length));
+                }
+                drop.textContent = codeText;
+                
+                container.appendChild(drop);
+                
+                // Réinitialiser l'animation une fois terminée
+                drop.addEventListener('animationend', function() {
+                    this.style.left = `${Math.random() * 100}%`;
+                    this.style.animationDuration = `${Math.random() * 5 + 3}s`;
+                    this.style.opacity = Math.random();
+                });
+            }
+        }
+        
+        // Démarrer l'animation au chargement de la page
+        window.addEventListener('load', createCodeRain);
+    </script>
 </body>
 </html>
