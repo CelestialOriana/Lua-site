@@ -122,27 +122,57 @@ Les erreurs sont enregistrées dans la console où s'exécute l'application Flas
 ## 📁 Structure du projet
 
 ```
-├── .env                    # Variables d'environnement
-├── app.py                  # Point d'entrée de l'application Flask
-├── config.py               # Configuration de l'application
-├── lua_integration.py      # Intégration de Lua avec Flask
-├── lua/                    # Fichiers Lua pour la logique métier
-│   ├── app.lua             # Point d'entrée Lua
-│   ├── inventory_manager.lua  # Gestionnaire d'inventaire
-│   ├── material.lua        # Modèle de matériel
+├── .env                        # Variables d'environnement
+├── app.py                      # Point d'entrée de l'application Flask
+├── config.py                   # Configuration de l'application
+├── lua_integration.py          # Intégration de Lua avec Flask
+├── requirements.txt            # Dépendances Python
+├── test_notifications.py       # Script de test pour le système de notifications
+├── lua/                        # Fichiers Lua pour la logique métier
+│   ├── app.lua                 # Point d'entrée Lua
+│   ├── home_controller.lua     # Contrôleur de la page d'accueil
+│   ├── inventory_manager.lua   # Gestionnaire d'inventaire
+│   ├── material.lua            # Modèle de matériel
 │   ├── notification_system.lua # Système de notifications
-│   └── reports_generator.lua  # Générateur de rapports
-├── models/                 # Modèles de données Python
-│   └── user.py             # Modèle utilisateur
-├── requirements.txt        # Dépendances Python
-├── static/                 # Fichiers statiques
-│   ├── css/                # Styles CSS
-│   └── js/                 # Scripts JavaScript
-└── templates/              # Templates HTML
-    ├── auth/               # Pages d'authentification
-    ├── dashboard.html      # Tableau de bord
-    ├── reports.html        # Page des rapports
-    └── layouts/            # Layouts communs
+│   ├── reports_generator.lua   # Générateur de rapports
+│   ├── rules_engine.lua        # Moteur de règles métier
+│   ├── smart_cache.lua         # Système de cache
+│   └── template_engine.lua     # Moteur de templates Lua
+├── models/                     # Modèles de données Python
+│   ├── __pycache__/            # Cache Python
+│   ├── models-init.py          # Initialisation des modèles
+│   └── user.py                 # Modèle utilisateur
+├── static/                     # Fichiers statiques
+│   ├── css/                    # Styles CSS
+│   │   └── style.css           # Styles principaux
+│   ├── images/                 # Images
+│   │   ├── desktop/            # Images pour ordinateurs de bureau
+│   │   ├── laptop/             # Images pour ordinateurs portables
+│   │   └── region_reunion.png  # Logo de la Région Réunion
+│   └── js/                     # Scripts JavaScript
+│       ├── app.js              # Script principal
+│       └── sw.js               # Service Worker
+├── templates/                  # Templates HTML
+│   ├── admin/                  # Pages d'administration
+│   │   └── lua_modules.html    # Gestion des modules Lua
+│   ├── auth/                   # Pages d'authentification
+│   │   ├── login.html          # Page de connexion
+│   │   ├── profile.html        # Profil utilisateur
+│   │   └── register.html       # Page d'inscription
+│   ├── layouts/                # Layouts communs
+│   │   └── main.html           # Layout principal
+│   ├── reports/                # Templates de rapports
+│   │   └── report_template.html # Template de rapport
+│   ├── about.html              # Page À propos
+│   ├── dashboard.html          # Tableau de bord
+│   ├── debug.html              # Page de débogage
+│   ├── error.html              # Page d'erreur
+│   ├── index.html              # Page d'accueil
+│   ├── notification-dashboard.html # Tableau de bord des notifications
+│   ├── reports.html            # Page des rapports
+│   └── stage-template.html     # Template pour la page de stage
+└── vs.code/                    # Configuration de VS Code
+    └── settings.json           # Paramètres VS Code
 ```
 
 ## 🔄 Futures améliorations
