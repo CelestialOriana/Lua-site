@@ -1,6 +1,6 @@
-# Système de Gestion de Matériel (SGM)
+# Système de Gestion de Matériel (SGM) - Région Réunion
 
-Un système moderne pour gérer l'inventaire de matériel informatique, développé avec Flask et Lua.
+Une application moderne pour gérer l'inventaire et le suivi du matériel informatique, développée avec Flask et Lua.
 
 ![Badge Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Badge Python](https://img.shields.io/badge/Python-3.7%2B-yellow)
@@ -9,12 +9,14 @@ Un système moderne pour gérer l'inventaire de matériel informatique, dévelop
 
 ## 📋 Fonctionnalités
 
-- **Inventaire en temps réel** : Suivez tous vos équipements informatiques
-- **Filtrage par type** : Affichez uniquement les ordinateurs de bureau ou portables
-- **Alertes de stock** : Identification visuelle des matériels en quantité limitée
-- **API REST** : Accédez aux données via une API JSON
-- **Responsive** : Interface adaptée à tous les appareils
-- **Mode hors ligne** : Fonctionnalités de base disponibles sans connexion
+- **Tableau de bord interactif** : Vue d'ensemble claire de votre inventaire de matériel
+- **Gestion des stocks** : Suivez toutes vos ressources matérielles en temps réel
+- **Filtrage par type** : Affichez uniquement les ordinateurs de bureau ou portables selon vos besoins
+- **Alertes de stock bas** : Identification visuelle des matériels en quantité limitée
+- **Système de rapports** : Générez des rapports détaillés sur l'utilisation et l'état du stock
+- **Notifications** : Système complet pour informer les utilisateurs des événements importants
+- **API REST** : Interface programmable pour intégrer avec d'autres services
+- **Interface responsive** : Adapté à tous les appareils
 
 ## 🛠️ Guide d'installation
 
@@ -24,35 +26,29 @@ Un système moderne pour gérer l'inventaire de matériel informatique, dévelop
 - Pip (gestionnaire de paquets Python)
 - Navigateur web moderne
 
-### Étape 1 : Téléchargement du projet
+### Étape 1 : Cloner le projet
 
 ```bash
-# Clonez le dépôt Git (si disponible)
+# Clonez le dépôt Git
 git clone https://github.com/votre-utilisateur/systeme-gestion-materiel.git
 cd systeme-gestion-materiel
 
 # OU téléchargez et extrayez l'archive du projet
-# puis naviguez dans le dossier extrait
-cd chemin/vers/dossier/projet
 ```
 
 ### Étape 2 : Installation des dépendances
 
-Les modules suivants sont nécessaires au fonctionnement de l'application :
-
-- **Flask** : Framework web pour Python
-- **python-dotenv** : Gestion des variables d'environnement
-- **lupa** : Intégration de Lua dans Python
-
 ```bash
-# Installation individuelle des modules
-pip install flask
-pip install python-dotenv
-pip install lupa
-
-# OU installation en utilisant le fichier requirements.txt
+# Installation en utilisant le fichier requirements.txt
 pip install -r requirements.txt
 ```
+
+Les modules principaux nécessaires sont :
+- Flask 3.0.0 : Framework web léger
+- python-dotenv 1.0.0 : Gestion des variables d'environnement
+- lupa 2.0 : Intégration de Lua dans Python
+- flask-login 0.6.3 : Gestion de l'authentification
+- flask-bcrypt 1.0.1 : Hachage sécurisé des mots de passe
 
 ### Étape 3 : Configuration
 
@@ -64,7 +60,7 @@ FLASK_ENV=development
 PORT=5000
 ```
 
-2. Personnalisez la configuration si nécessaire dans `config.py`
+2. Personnalisez la configuration dans `config.py` si nécessaire
 
 ### Étape 4 : Lancement de l'application
 
@@ -73,15 +69,40 @@ PORT=5000
 python app.py
 ```
 
-L'application est maintenant accessible à l'adresse : [http://localhost:5000](http://localhost:5000)
+L'application est accessible à l'adresse : [http://localhost:5000](http://localhost:5000)
 
-## 🖥️ Utilisation
+## 🖥️ Guide d'utilisation
 
-1. **Page d'accueil** : Présentation du système
-2. **Tableau de bord** : Vue d'ensemble et liste des matériels
-   - Utilisez les boutons de filtre pour afficher uniquement les ordinateurs de bureau ou portables
-   - Les matériels en stock limité (moins de 20%) sont mis en évidence en rouge
-3. **Page À propos** : Informations sur l'application
+### Authentification
+
+- **Connexion** : Utilisez les identifiants par défaut (admin/admin123 ou user1/user123)
+- **Inscription** : Créez un nouveau compte utilisateur
+
+### Tableau de bord
+
+Le tableau de bord offre une vue d'ensemble de l'inventaire avec :
+- Statistiques générales (total des matériels, disponibles, types)
+- Liste des matériels avec filtrage par type (bureau/portable)
+- Section spéciale pour les matériels en stock limité
+- Actions rapides pour allouer du matériel
+
+### Gestion des matériels
+
+- **Allocation** : Attribuez du matériel à un utilisateur
+- **Consultation** : Visualisez les détails et la disponibilité
+- **Filtrage** : Triez par type de matériel
+
+### Rapports
+
+- **Utilisation du matériel** : Statistiques d'allocation et de retour
+- **Inventaire** : État actuel des stocks
+- **Activité utilisateur** : Suivi des actions par utilisateur
+
+### Notifications
+
+- **Création** : Envoyez des notifications aux utilisateurs
+- **Diffusion** : Informez tous les utilisateurs d'un message important
+- **Gestion** : Marquez comme lu, filtrez et supprimez les notifications
 
 ## 🔧 Dépannage
 
@@ -89,58 +110,49 @@ L'application est maintenant accessible à l'adresse : [http://localhost:5000](h
 
 | Problème | Solution |
 |----------|----------|
-| `ModuleNotFoundError: No module named 'flask'` | Vérifiez que Flask est bien installé avec `pip install flask` |
-| `ModuleNotFoundError: No module named 'dotenv'` | Installez python-dotenv avec `pip install python-dotenv` |
-| `ModuleNotFoundError: No module named 'lupa'` | Installez lupa avec `pip install lupa` |
-| Erreur lors du chargement des fichiers Lua | Vérifiez que les fichiers Lua sont correctement placés dans le dossier `/lua` |
-| Erreur "Address already in use" | Un autre service utilise déjà le port 5000. Modifiez la valeur du port dans le fichier `.env` |
+| Erreur de connexion | Vérifiez les identifiants (admin/admin123 ou user1/user123) |
+| Erreur "Address already in use" | Modifiez le port dans le fichier `.env` |
+| Modules Python non trouvés | Vérifiez l'installation avec `pip list` |
+| Problèmes d'affichage | Videz le cache du navigateur ou essayez un autre navigateur |
 
-### Vérification de l'installation
+### Logs d'erreur
 
-Pour vérifier que tous les modules sont correctement installés :
-
-```bash
-pip list | findstr flask
-pip list | findstr python-dotenv
-pip list | findstr lupa
-```
-
-Ces commandes devraient afficher les versions installées de chaque module.
+Les erreurs sont enregistrées dans la console où s'exécute l'application Flask. Consultez ces logs pour diagnostiquer les problèmes.
 
 ## 📁 Structure du projet
 
 ```
-.
 ├── .env                    # Variables d'environnement
 ├── app.py                  # Point d'entrée de l'application Flask
 ├── config.py               # Configuration de l'application
-├── lua                     # Fichiers Lua
+├── lua_integration.py      # Intégration de Lua avec Flask
+├── lua/                    # Fichiers Lua pour la logique métier
 │   ├── app.lua             # Point d'entrée Lua
-│   ├── home_controller.lua # Contrôleur d'accueil
-│   └── material.lua        # Modèle de matériel
+│   ├── inventory_manager.lua  # Gestionnaire d'inventaire
+│   ├── material.lua        # Modèle de matériel
+│   ├── notification_system.lua # Système de notifications
+│   └── reports_generator.lua  # Générateur de rapports
+├── models/                 # Modèles de données Python
+│   └── user.py             # Modèle utilisateur
 ├── requirements.txt        # Dépendances Python
-├── static                  # Fichiers statiques
-│   ├── css
-│   │   └── style.css       # Styles CSS
-│   └── js
-│       ├── app.js          # JavaScript principal
-│       └── sw.js           # Service Worker
-└── templates               # Templates HTML
-    ├── about.html          # Page À propos
+├── static/                 # Fichiers statiques
+│   ├── css/                # Styles CSS
+│   └── js/                 # Scripts JavaScript
+└── templates/              # Templates HTML
+    ├── auth/               # Pages d'authentification
     ├── dashboard.html      # Tableau de bord
-    ├── error.html          # Page d'erreur
-    ├── index.html          # Page d'accueil
-    └── layouts
-        └── main.html       # Template de base
+    ├── reports.html        # Page des rapports
+    └── layouts/            # Layouts communs
 ```
 
-## 🔄 Mises à jour futures
+## 🔄 Futures améliorations
 
-- [ ] Système d'authentification des utilisateurs
-- [ ] Gestion des emprunts de matériel
-- [ ] Tableau de bord analytique avancé
-- [ ] Historique des mouvements
-- [ ] Application mobile
+- [ ] Interface d'administration avancée
+- [ ] Historique des mouvements avec statistiques
+- [ ] Gestion des réservations de matériel
+- [ ] Système de QR codes pour le suivi physique
+- [ ] Application mobile compagnon
+- [ ] Intégration avec les services d'inventaire existants
 
 ## 📝 Licence
 
@@ -150,6 +162,10 @@ Ce projet est sous licence [MIT](https://opensource.org/licenses/MIT).
 
 Les contributions sont les bienvenues ! N'hésitez pas à soumettre des issues ou des pull requests.
 
+## 📧 Contact
+
+Pour toute question ou suggestion, contactez-nous à l'adresse : sgm-support@exemple.fr
+
 ---
 
-Développé avec ❤️ par [Emmanuel ah-hong]
+Développé avec ❤️ par [Emmanuel Ah-Hong]
