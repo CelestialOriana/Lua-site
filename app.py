@@ -1,5 +1,3 @@
-# app.py optimisé
-
 from flask import Flask, render_template, jsonify, redirect, url_for, request
 import os
 import sys
@@ -7,6 +5,7 @@ import traceback
 from dotenv import load_dotenv
 import logging
 import json
+import time
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, 
@@ -145,7 +144,113 @@ def api_materials():
         logger.error(f"Erreur API matériels: {e}")
         return jsonify({"error": "Une erreur est survenue"}), 500
 
-# Nouvelles routes utilisant Lua
+# Nouvelles routes pour le système de notifications
+
+@app.route("/notifications")
+def notifications_dashboard():
+    """Page du tableau de bord des notifications."""
+    try:
+        return render_template('notification-dashboard.html')
+    except Exception as e:
+        logger.error(f"Erreur sur la page des notifications: {str(e)}")
+        traceback.print_exc()
+        return render_template('error.html', error="Erreur sur la page des notifications")
+
+@app.route("/api/notifications/add", methods=["POST"])
+def add_notification():
+    """Route pour ajouter une notification (version simplifiée)."""
+    data = request.json
+    user_id = data.get('user_id')
+    notification_type = data.get('type', 'info')
+    message = data.get('message')
+    metadata = data.get('metadata', {})
+    
+    if not user_id or not message:
+        return jsonify({"success": False, "message": "L'ID utilisateur et le message sont requis"}), 400
+    
+    try:
+        logger.info(f"Tentative d'ajout de notification - User: {user_id}, Type: {notification_type}, Message: {message}")
+        
+        # Simuler l'ajout d'une notification sans appeler Lua pour tests
+        notification_id = hash(f"{user_id}-{message}-{time.time()}")
+        
+        logger.info(f"Notification simulée ajoutée avec succès, ID: {notification_id}")
+        return jsonify({"success": True, "notification_id": notification_id})
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'ajout de la notification: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Erreur lors de l'ajout de la notification: {str(e)}"}), 500
+
+@app.route("/api/notifications/broadcast", methods=["POST"])
+def broadcast_notification():
+    """Route pour diffuser une notification à tous les utilisateurs."""
+    data = request.json
+    message = data.get('message')
+    metadata = data.get('metadata', {})
+    
+    if not message:
+        return jsonify({"success": False, "message": "Le message est requis"}), 400
+    
+    try:
+        # Simuler la diffusion d'une notification
+        users = ["user1", "user2", "user3", "admin"]
+        notification_ids = []
+        
+        for user in users:
+            notification_id = hash(f"{user}-{message}-{time.time()}")
+            notification_ids.append(notification_id)
+        
+        return jsonify({"success": True, "notification_ids": notification_ids})
+    except Exception as e:
+        logger.error(f"Erreur lors de la diffusion de la notification: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Erreur lors de la diffusion de la notification: {str(e)}"}), 500
+
+@app.route("/api/notifications/delete", methods=["POST"])
+def delete_notification():
+    """Route pour supprimer une notification."""
+    data = request.json
+    notification_id = data.get('notification_id')
+    
+    if not notification_id:
+        return jsonify({"success": False, "message": "L'ID de notification est requis"}), 400
+    
+    # Simuler la suppression
+    return jsonify({"success": True})
+
+@app.route("/api/notifications/mark-all-read", methods=["POST"])
+def mark_all_notifications_read():
+    """Route pour marquer toutes les notifications d'un utilisateur comme lues."""
+    data = request.json
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({"success": False, "message": "L'ID utilisateur est requis"}), 400
+    
+    # Simuler le marquage de notifications
+    count = 5  # nombre fictif de notifications marquées
+    return jsonify({"success": True, "count": count})
+
+# Route temporaire pour recharger le module de règles (accepte GET et POST)
+@app.route("/api/reload_rules", methods=["GET", "POST"])
+def reload_rules_module():
+    """Route temporaire pour recharger le module de règles pendant le développement."""
+    try:
+        if lua_integration:
+            result = lua_integration.reload_module('rules_engine')
+            if result:
+                return jsonify({"success": True, "message": "Module rules_engine rechargé avec succès"})
+            else:
+                return jsonify({"success": False, "message": "Échec du rechargement du module rules_engine"}), 500
+        else:
+            return jsonify({"error": "Intégration Lua non initialisée"}), 500
+    except Exception as e:
+        logger.error(f"Erreur lors du rechargement du module rules_engine: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": f"Erreur lors du rechargement: {str(e)}"}), 500
+
+# Routes utilisant Lua
 
 @app.route("/api/allocate", methods=["POST"])
 def allocate_material():
@@ -161,6 +266,9 @@ def allocate_material():
     material_id = data.get('material_id')
     user_id = data.get('user_id')
     quantity = data.get('quantity', 1)
+    
+    # Log des données reçues pour debug
+    logger.info(f"Tentative d'allocation - Material: {material_id}, User: {user_id}, Quantity: {quantity}")
     
     # Validation de base
     if material_id is None:
@@ -191,54 +299,19 @@ def allocate_material():
         if not material:
             return jsonify({"success": False, "message": f"Matériel avec ID {material_id} non trouvé"}), 404
         
-        # Vérifier si l'intégration Lua est disponible
-        if lua_integration:
-            try:
-                # Créer le contexte pour le moteur de règles
-                context = {
-                    'user_id': user_id,
-                    'user_role': 'standard',
-                    'user_allocation_count': 2,
-                    'material_id': material_id,
-                    'quantity': quantity
-                }
-                
-                # Vérifier les règles
-                result = lua_integration.call_lua_function('rules_engine', 'validate', 'material_allocation', context)
-                if isinstance(result, tuple) and len(result) >= 2:
-                    success, message = result
-                else:
-                    success = result
-                    message = None
-                
-                if not success:
-                    return jsonify({"success": False, "message": message or "Règles d'allocation non respectées"}), 400
-                
-                # Si les règles sont validées, procéder à l'allocation
-                result = lua_integration.call_lua_function('inventory_manager', 'allocate_material', material_id, user_id, quantity)
-                if isinstance(result, tuple) and len(result) >= 2:
-                    success, transaction_id = result
-                else:
-                    success = result
-                    transaction_id = f"{material_id}-{user_id}-{os.urandom(4).hex()}"
-                
-                if success:
-                    # Mise à jour des données locales (pour la compatibilité)
-                    material["available"] = max(0, material["available"] - quantity)
-                    
-                    return jsonify({"success": True, "transaction_id": transaction_id})
-                else:
-                    return jsonify({"success": False, "message": transaction_id or "Échec de l'allocation"}), 400
-            except Exception as lua_error:
-                logger.error(f"Erreur avec l'intégration Lua: {str(lua_error)}")
-                # Continuer avec la logique de secours
-        
-        # Fallback si Lua n'est pas disponible ou a échoué
+        # Vérifier si la quantité disponible est suffisante
         if material["available"] >= quantity:
+            # Mise à jour du stock
             material["available"] -= quantity
             transaction_id = f"{material_id}-{user_id}-{os.urandom(4).hex()}"
+            logger.info(f"Allocation réussie. Transaction: {transaction_id}")
+            
+            # Simuler l'ajout d'une notification
+            notification_id = hash(f"{user_id}-allocation-{transaction_id}")
+            
             return jsonify({"success": True, "transaction_id": transaction_id})
         else:
+            logger.error(f"Stock insuffisant. Disponible: {material['available']}, Demandé: {quantity}")
             return jsonify({"success": False, "message": f"Stock insuffisant. Disponible: {material['available']}, Demandé: {quantity}"}), 400
         
     except Exception as e:
@@ -304,12 +377,27 @@ def get_notifications():
         return jsonify({"error": "L'ID utilisateur est requis"}), 400
     
     try:
-        if lua_integration:
-            notifications = lua_integration.call_lua_function('notification_system', 'get_notifications', user_id, include_read)
-            return jsonify({"notifications": notifications})
-        else:
-            # Fallback si Lua n'est pas disponible
-            return jsonify({"notifications": []}), 200
+        # Simuler les notifications pour tests
+        notifications = []
+        notification_types = ["info", "warning", "error", "success", "system"]
+        
+        for i in range(5):
+            read = i % 2 == 0  # Alterner entre lu et non lu
+            if not include_read and read:
+                continue
+                
+            notification = {
+                "id": i + 1,
+                "user_id": user_id,
+                "type": notification_types[i % len(notification_types)],
+                "message": f"Ceci est une notification de test #{i+1} pour {user_id}",
+                "created_at": int(time.time()) - (i * 3600),  # Espacer d'une heure
+                "read": read,
+                "metadata": {"test_id": i, "source": "simulation"}
+            }
+            notifications.append(notification)
+            
+        return jsonify({"notifications": notifications})
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des notifications: {str(e)}")
         traceback.print_exc()
@@ -324,17 +412,8 @@ def mark_notification_read():
     if not notification_id:
         return jsonify({"error": "L'ID de notification est requis"}), 400
     
-    try:
-        if lua_integration:
-            success = lua_integration.call_lua_function('notification_system', 'mark_as_read', notification_id)
-            return jsonify({"success": success})
-        else:
-            # Fallback si Lua n'est pas disponible
-            return jsonify({"success": False, "message": "Système de notifications non disponible"}), 500
-    except Exception as e:
-        logger.error(f"Erreur lors du marquage de la notification: {str(e)}")
-        traceback.print_exc()
-        return jsonify({"error": "Erreur lors du marquage de la notification"}), 500
+    # Simuler le marquage comme lu
+    return jsonify({"success": True})
 
 @app.route("/api/cache/stats", methods=["GET"])
 def cache_stats():
@@ -377,7 +456,7 @@ def list_lua_modules():
         traceback.print_exc()
         return jsonify({"error": "Erreur lors de la liste des modules Lua"}), 500
 
-@app.route("/api/lua/modules/reload", methods=["POST"])
+@app.route("/api/lua/modules/reload", methods=["POST", "GET"])
 def reload_all_lua_modules():
     """Recharge tous les modules Lua."""
     try:
@@ -391,7 +470,7 @@ def reload_all_lua_modules():
         traceback.print_exc()
         return jsonify({"error": "Erreur lors du rechargement des modules Lua"}), 500
 
-@app.route("/api/lua/module/<module_name>/reload", methods=["POST"])
+@app.route("/api/lua/module/<module_name>/reload", methods=["POST", "GET"])
 def reload_lua_module(module_name):
     """Recharge un module Lua spécifique."""
     try:
@@ -407,6 +486,21 @@ def reload_lua_module(module_name):
         logger.error(f"Erreur lors du rechargement du module {module_name}: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": f"Erreur lors du rechargement du module {module_name}"}), 500
+
+# Nouvelle page admin pour les modules Lua
+@app.route("/admin/lua-modules")
+def lua_modules_admin_page():
+    """Page d'administration des modules Lua."""
+    try:
+        if lua_integration and hasattr(lua_integration, 'modules'):
+            modules = list(lua_integration.modules.keys())
+            return render_template('admin/lua_modules.html', modules=modules)
+        else:
+            return render_template('error.html', error="Intégration Lua non initialisée")
+    except Exception as e:
+        logger.error(f"Erreur sur la page d'administration Lua: {str(e)}")
+        traceback.print_exc()
+        return render_template('error.html', error="Erreur sur la page d'administration Lua")
 
 # Gestion des erreurs
 @app.errorhandler(404)

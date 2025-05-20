@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de bord des notifications - Système de Gestion de Matériel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Styles spécifiques au tableau de bord des notifications */
+        .notifications-dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .notification-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .notification-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .notification-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+        
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        
+        .notification-item:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .notification-item.unread {
+            background-color: #f0f7ff;
+        }
+        
+        .notification-item.unread:hover {
+            background-color: #e6f2ff;
+        }
+        
+        .notification-type {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+            margin-right: 10px;
+        }
+        
+        .notification-type-info {
+            background-color: #3498db;
+        }
+        
+        .notification-type-warning {
+            background-color: #f39c12;
+        }
+        
+        .notification-type-error {
+            background-color: #e74c3c;
+        }
+        
+        .notification-type-success {
+            background-color: #2ecc71;
+        }
+        
+        .notification-type-system {
+            background-color: #9b59b6;
+        }
+        
+        .notification-content {
+            margin-top: 5px;
+            color: #333;
+        }
+        
+        .notification-time {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 5px;
+        }
+        
+        .notification-actions {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+        }
+        
+        .notification-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #3498db;
+            margin-left: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .notification-action-btn:hover {
+            text-decoration: underline;
+        }
+        
+        .notification-filters {
+            display: flex;
+            margin-bottom: 20px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .notification-filter {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .notification-filter:hover {
+            background-color: #e5e5e5;
+        }
+        
+        .notification-filter.active {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .select-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            background-color: white;
+        }
+        
+        .form-actions {
+            margin-top: 20px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #777;
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 3px 6px;
+            border-radius: 50%;
+            background-color: #e74c3c;
+            color: white;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+        
+        /* Grille 2 colonnes pour le formulaire et les notifications */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <span>SGM - Région Réunion</span>
+            </div>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Accueil</a></li>
+                <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
+                <li><a href="{{ url_for('about') }}">À propos</a></li>
+                <li><a href="{{ url_for('stage') }}">Mon Stage</a></li>
+                <li><a href="{{ url_for('reports_page') }}">Rapports</a></li>
+                <li><a href="{{ url_for('notifications_dashboard') }}" class="active">Notifications</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="notifications-dashboard">
+        <h1>Tableau de bord des notifications</h1>
+        
+        <div class="grid-layout">
+            <!-- Formulaire d'ajout de notification -->
+            <div class="notification-section">
+                <h2>Créer une notification</h2>
+                
+                <form id="notificationForm">
+                    <div class="form-group">
+                        <label for="userIdInput">ID Utilisateur</label>
+                        <input type="text" id="userIdInput" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notificationTypeSelect">Type de notification</label>
+                        <select id="notificationTypeSelect" class="select-control">
+                            <option value="info">Information</option>
+                            <option value="warning">Avertissement</option>
+                            <option value="error">Erreur</option>
+                            <option value="success">Succès</option>
+                            <option value="system">Système</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="messageInput">Message</label>
+                        <textarea id="messageInput" class="form-control" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="metadataInput">Métadonnées (JSON)</label>
+                        <textarea id="metadataInput" class="form-control" rows="3" placeholder='{"key": "value"}'></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn">Créer notification</button>
+                        <button type="button" id="broadcastBtn" class="btn">Diffuser à tous</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Liste des notifications -->
+            <div class="notification-section">
+                <div class="notification-header">
+                    <h2>Notifications</h2>
+                    <div>
+                        <input type="text" id="userFilterInput" class="form-control" placeholder="ID utilisateur" style="display: inline-block; width: auto;">
+                        <button id="loadNotificationsBtn" class="btn">Charger</button>
+                        <button id="markAllReadBtn" class="btn">Tout marquer comme lu</button>
+                    </div>
+                </div>
+                
+                <div class="notification-filters">
+                    <div class="notification-filter active" data-filter="all">Toutes</div>
+                    <div class="notification-filter" data-filter="info">Information</div>
+                    <div class="notification-filter" data-filter="warning">Avertissement</div>
+                    <div class="notification-filter" data-filter="error">Erreur</div>
+                    <div class="notification-filter" data-filter="success">Succès</div>
+                    <div class="notification-filter" data-filter="system">Système</div>
+                    <div class="notification-filter" data-filter="unread">Non lues <span id="unreadBadge" class="badge">0</span></div>
+                </div>
+                
+                <ul id="notificationList" class="notification-list">
+                    <!-- Les notifications seront ajoutées ici dynamiquement -->
+                    <li class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>Aucune notification pour le moment</p>
+                        <p>Entrez un ID utilisateur et cliquez sur "Charger" pour voir ses notifications</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Système de Gestion de Matériel - Région Réunion</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Éléments du DOM
+            const notificationForm = document.getElementById('notificationForm');
+            const userIdInput = document.getElementById('userIdInput');
+            const notificationTypeSelect = document.getElementById('notificationTypeSelect');
+            const messageInput = document.getElementById('messageInput');
+            const metadataInput = document.getElementById('metadataInput');
+            const broadcastBtn = document.getElementById('broadcastBtn');
+            const loadNotificationsBtn = document.getElementById('loadNotificationsBtn');
+            const userFilterInput = document.getElementById('userFilterInput');
+            const notificationList = document.getElementById('notificationList');
+            const notificationFilters = document.querySelectorAll('.notification-filter');
+            const markAllReadBtn = document.getElementById('markAllReadBtn');
+            const unreadBadge = document.getElementById('unreadBadge');
+            
+            // Filtre actif
+            let activeFilter = 'all';
+            let notifications = [];
+            
+            // Fonction pour créer une notification
+            notificationForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const userId = userIdInput.value.trim();
+                const notificationType = notificationTypeSelect.value;
+                const message = messageInput.value.trim();
+                let metadata = {};
+                
+                try {
+                    metadata = metadataInput.value.trim() ? JSON.parse(metadataInput.value) : {};
+                } catch (error) {
+                    alert('Format JSON invalide pour les métadonnées');
+                    return;
+                }
+                
+                if (!userId || !message) {
+                    alert('Veuillez remplir tous les champs obligatoires');
+                    return;
+                }
+                
+                // Appel API pour créer la notification
+                fetch('/api/notifications/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        type: notificationType,
+                        message: message,
+                        metadata: metadata
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Notification créée avec succès (ID: ${data.notification_id})`);
+                        notificationForm.reset();
+                        
+                        // Recharger les notifications si l'utilisateur courant est celui qui a reçu la notification
+                        if (userFilterInput.value.trim() === userId) {
+                            loadNotifications();
+                        }
+                    } else {
+                        alert(`Erreur: ${data.message || 'Erreur inconnue'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la création de la notification');
+                });
+            });
+            
+            // Fonction pour diffuser une notification à tous les utilisateurs
+            broadcastBtn.addEventListener('click', function() {
+                const message = messageInput.value.trim();
+                let metadata = {};
+                
+                try {
+                    metadata = metadataInput.value.trim() ? JSON.parse(metadataInput.value) : {};
+                } catch (error) {
+                    alert('Format JSON invalide pour les métadonnées');
+                    return;
+                }
+                
+                if (!message) {
+                    alert('Veuillez saisir un message');
+                    return;
+                }
+                
+                // Appel API pour diffuser la notification
+                fetch('/api/notifications/broadcast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        metadata: metadata
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Notification diffusée à ${data.notification_ids.length} utilisateur(s)`);
+                        notificationForm.reset();
+                        
+                        // Recharger les notifications
+                        loadNotifications();
+                    } else {
+                        alert(`Erreur: ${data.message || 'Erreur inconnue'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la diffusion de la notification');
+                });
+            });
+            
+            // Fonction pour charger les notifications
+            loadNotificationsBtn.addEventListener('click', loadNotifications);
+            
+            function loadNotifications() {
+                const userId = userFilterInput.value.trim();
+                
+                if (!userId) {
+                    alert('Veuillez saisir un ID utilisateur');
+                    return;
+                }
+                
+                // Appel API pour récupérer les notifications
+                fetch(`/api/notifications?user_id=${userId}&include_read=true`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.notifications) {
+                        notifications = data.notifications;
+                        renderNotifications();
+                    } else {
+                        notificationList.innerHTML = `
+                            <li class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <p>Aucune notification pour ${userId}</p>
+                            </li>
+                        `;
+                        updateUnreadBadge();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors du chargement des notifications');
+                });
+            }
+            
+            // Fonction pour rendre les notifications
+            function renderNotifications() {
+                if (!notifications || notifications.length === 0) {
+                    notificationList.innerHTML = `
+                        <li class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>Aucune notification trouvée</p>
+                        </li>
+                    `;
+                    updateUnreadBadge();
+                    return;
+                }
+                
+                notificationList.innerHTML = '';
+                let unreadCount = 0;
+                
+                notifications.forEach(notification => {
+                    // Appliquer le filtre
+                    if (activeFilter !== 'all' && activeFilter !== 'unread' && notification.type !== activeFilter) {
+                        return;
+                    }
+                    
+                    if (activeFilter === 'unread' && notification.read) {
+                        return;
+                    }
+                    
+                    if (!notification.read) {
+                        unreadCount++;
+                    }
+                    
+                    const notificationDate = new Date(notification.created_at * 1000);
+                    const formattedDate = notificationDate.toLocaleString();
+                    
+                    const notificationItem = document.createElement('li');
+                    notificationItem.className = `notification-item ${notification.read ? '' : 'unread'}`;
+                    notificationItem.dataset.id = notification.id;
+                    
+                    notificationItem.innerHTML = `
+                        <div>
+                            <span class="notification-type notification-type-${notification.type}">${getNotificationTypeLabel(notification.type)}</span>
+                            <div class="notification-content">${notification.message}</div>
+                            <div class="notification-time">${formattedDate}</div>
+                        </div>
+                        <div class="notification-actions">
+                            ${notification.read ? '' : '<button class="notification-action-btn mark-read-btn">Marquer comme lu</button>'}
+                            <button class="notification-action-btn delete-btn">Supprimer</button>
+                        </div>
+                    `;
+                    
+                    notificationList.appendChild(notificationItem);
+                });
+                
+                // Mettre à jour le badge non lu
+                updateUnreadBadge(unreadCount);
+                
+                // Attacher les événements aux boutons
+                attachNotificationEvents();
+            }
+            
+            // Fonction pour attacher les événements aux boutons de notification
+            function attachNotificationEvents() {
+                // Boutons "Marquer comme lu"
+                document.querySelectorAll('.mark-read-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const notificationItem = this.closest('.notification-item');
+                        const notificationId = notificationItem.dataset.id;
+                        
+                        markAsRead(notificationId, notificationItem);
+                    });
+                });
+                
+                // Boutons "Supprimer"
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const notificationItem = this.closest('.notification-item');
+                        const notificationId = notificationItem.dataset.id;
+                        
+                        deleteNotification(notificationId, notificationItem);
+                    });
+                });
+            }
+            
+            // Fonction pour marquer une notification comme lue
+            function markAsRead(notificationId, notificationItem) {
+                fetch('/api/notifications/mark-read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        notification_id: parseInt(notificationId)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        notificationItem.classList.remove('unread');
+                        
+                        // Mettre à jour le bouton
+                        const markReadBtn = notificationItem.querySelector('.mark-read-btn');
+                        if (markReadBtn) {
+                            markReadBtn.remove();
+                        }
+                        
+                        // Mettre à jour l'objet notification dans notre tableau
+                        const notification = notifications.find(n => n.id == notificationId);
+                        if (notification) {
+                            notification.read = true;
+                        }
+                        
+                        // Mettre à jour le badge
+                        updateUnreadBadge();
+                        
+                        // Si le filtre actif est "non lues", rafraîchir la vue
+                        if (activeFilter === 'unread') {
+                            renderNotifications();
+                        }
+                    } else {
+                        alert(`Erreur: ${data.message || 'Erreur inconnue'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors du marquage comme lu');
+                });
+            }
+            
+            // Fonction pour supprimer une notification
+            function deleteNotification(notificationId, notificationItem) {
+                if (!confirm('Êtes-vous sûr de vouloir supprimer cette notification ?')) {
+                    return;
+                }
+                
+                fetch('/api/notifications/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        notification_id: parseInt(notificationId)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Supprimer l'élément du DOM
+                        notificationItem.remove();
+                        
+                        // Supprimer la notification de notre tableau
+                        notifications = notifications.filter(n => n.id != notificationId);
+                        
+                        // Mettre à jour le badge
+                        updateUnreadBadge();
+                        
+                        // Si c'était la dernière notification, afficher l'état vide
+                        if (notifications.length === 0) {
+                            renderNotifications();
+                        }
+                    } else {
+                        alert(`Erreur: ${data.message || 'Erreur inconnue'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la suppression');
+                });
+            }
+            
+            // Fonction pour marquer toutes les notifications comme lues
+            markAllReadBtn.addEventListener('click', function() {
+                const userId = userFilterInput.value.trim();
+                
+                if (!userId) {
+                    alert('Veuillez saisir un ID utilisateur');
+                    return;
+                }
+                
+                fetch('/api/notifications/mark-all-read', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`${data.count} notification(s) marquée(s) comme lue(s)`);
+                        
+                        // Mettre à jour notre tableau de notifications
+                        notifications.forEach(notification => {
+                            notification.read = true;
+                        });
+                        
+                        // Rafraîchir la vue
+                        renderNotifications();
+                    } else {
+                        alert(`Erreur: ${data.message || 'Erreur inconnue'}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors du marquage comme lu');
+                });
+            });
+            
+            // Fonction pour mettre à jour le badge de notifications non lues
+            function updateUnreadBadge(count) {
+                if (count === undefined) {
+                    // Calculer le nombre de notifications non lues
+                    count = notifications.filter(n => !n.read).length;
+                }
+                
+                unreadBadge.textContent = count;
+                unreadBadge.style.display = count > 0 ? '' : 'none';
+            }
+            
+            // Fonction pour obtenir le libellé d'un type de notification
+            function getNotificationTypeLabel(type) {
+                const labels = {
+                    'info': 'Information',
+                    'warning': 'Avertissement',
+                    'error': 'Erreur',
+                    'success': 'Succès',
+                    'system': 'Système'
+                };
+                
+                return labels[type] || type;
+            }
+            
+            // Gestion des filtres
+            notificationFilters.forEach(filter => {
+                filter.addEventListener('click', function() {
+                    notificationFilters.forEach(f => f.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    activeFilter = this.dataset.filter;
+                    renderNotifications();
+                });
+            });
+            
+            // Charger les notifications au chargement si un ID est déjà saisi
+            if (userFilterInput.value.trim()) {
+                loadNotifications();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration des modules Lua - Système de Gestion de Matériel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .admin-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .module-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .module-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        
+        .module-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .module-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+        
+        .module-actions {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.9rem;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-loaded {
+            background-color: #2ecc71;
+        }
+        
+        .status-error {
+            background-color: #e74c3c;
+        }
+        
+        .status-warning {
+            background-color: #f39c12;
+        }
+        
+        .module-status {
+            font-size: 0.9rem;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .reload-all-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .reload-all-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        
+        #statusMessage {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <span>SGM - Région Réunion</span>
+            </div>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Accueil</a></li>
+                <li><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
+                <li><a href="{{ url_for('about') }}">À propos</a></li>
+                <li><a href="{{ url_for('stage') }}">Mon Stage</a></li>
+                <li><a href="{{ url_for('reports_page') }}">Rapports</a></li>
+                <li><a href="{{ url_for('notifications_dashboard') }}">Notifications</a></li>
+                <li><a href="{{ url_for('lua_modules_admin_page') }}" class="active">Admin Lua</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="admin-container">
+        <div class="admin-section">
+            <div class="admin-header">
+                <h1>Administration des modules Lua</h1>
+                <button id="reloadAllBtn" class="reload-all-btn">Recharger tous les modules</button>
+            </div>
+            
+            <div id="statusMessage" class="alert"></div>
+            
+            <p>Cette page vous permet de gérer les modules Lua utilisés par l'application. Vous pouvez recharger individuellement chaque module ou tous les modules à la fois.</p>
+            
+            <div class="module-list">
+                {% for module in modules %}
+                <div class="module-card">
+                    <div class="module-name">{{ module }}</div>
+                    <div class="module-status">
+                        <span class="status-indicator status-loaded"></span> Chargé
+                    </div>
+                    <div class="module-actions">
+                        <button class="btn reload-module-btn" data-module="{{ module }}">Recharger</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Système de Gestion de Matériel - Région Réunion</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const reloadAllBtn = document.getElementById('reloadAllBtn');
+            const reloadModuleBtns = document.querySelectorAll('.reload-module-btn');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            // Fonction pour afficher un message de statut
+            function showStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = `alert alert-${type}`;
+                statusMessage.style.display = 'block';
+                
+                // Masquer le message après 5 secondes
+                setTimeout(function() {
+                    statusMessage.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Fonction pour recharger un module
+            function reloadModule(moduleName) {
+                fetch(`/api/lua/module/${moduleName}/reload`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus(`Module ${moduleName} rechargé avec succès`, 'success');
+                    } else {
+                        showStatus(`Échec du rechargement du module ${moduleName}: ${data.message || 'Erreur inconnue'}`, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    showStatus(`Erreur lors du rechargement du module ${moduleName}`, 'danger');
+                });
+            }
+            
+            // Événement pour recharger tous les modules
+            reloadAllBtn.addEventListener('click', function() {
+                fetch('/api/lua/modules/reload', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showStatus('Tous les modules Lua ont été rechargés avec succès', 'success');
+                    } else {
+                        showStatus(`Échec du rechargement des modules: ${data.message || 'Erreur inconnue'}`, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    showStatus('Erreur lors du rechargement des modules', 'danger');
+                });
+            });
+            
+            // Événements pour recharger un module spécifique
+            reloadModuleBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const moduleName = this.dataset.module;
+                    reloadModule(moduleName);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
