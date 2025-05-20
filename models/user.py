@@ -31,9 +31,9 @@ class User(UserMixin):
 
 # Simulation d'une base de données d'utilisateurs (à remplacer par une vraie base de données)
 users_db = {
-    1: User(1, 'admin', 'admin@example.com', '$2b$12$dXfAVDN3v5xSZ/gPvYP9SOPoZ9WeZ3RA49l7/rKCmYazGYmraDfEa', 'admin', 'Administrateur'),  # Mot de passe: admin123
-    2: User(2, 'user1', 'user1@example.com', '$2b$12$kxHR1hMJk.MfOlI8J5hN6emNzQT.z9iCg2GJcn0YezGEzU6.fyfUe', 'user', 'Utilisateur 1'),  # Mot de passe: user123
-    3: User(3, 'user2', 'user2@example.com', '$2b$12$kxHR1hMJk.MfOlI8J5hN6emNzQT.z9iCg2GJcn0YezGEzU6.fyfUe', 'user', 'Utilisateur 2'),  # Mot de passe: user123
+    1: User(1, 'admin', 'admin@example.com', '$2b$12$Rer1gTzTElFXKUeSaaPN5e.vWOPGqsxe7Wg6q5YOstlfTdPpyp73G', 'admin', 'Administrateur'),  # Mot de passe: admin123
+    2: User(2, 'user1', 'user1@example.com', '$2b$12$c9FuGFAxIwSCwwvdXlsFMOx0bjqh2vGUE7i/qCvnwf9/Rl2OjEI4G', 'user', 'Utilisateur 1'),  # Mot de passe: user123
+    3: User(3, 'user2', 'user2@example.com', '$2b$12$c9FuGFAxIwSCwwvdXlsFMOx0bjqh2vGUE7i/qCvnwf9/Rl2OjEI4G', 'user', 'Utilisateur 2'),  # Mot de passe: user123
 }
 
 # Fonctions d'accès aux utilisateurs
