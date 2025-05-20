@@ -1,3 +1,5 @@
+# lua_integration.py mis à jour pour éviter les conflits de route
+
 from flask import jsonify, request
 from lupa import LuaRuntime
 import os
@@ -176,13 +178,23 @@ class LuaIntegration:
 # Instance globale pour l'intégration Lua
 lua_integration = None
 
-def init_lua(app, lua_path='lua'):
-    """Initialise l'intégration Lua et ajoute les routes nécessaires à l'application Flask."""
+def init_lua(app, lua_path='lua', skip_routes=False):
+    """Initialise l'intégration Lua et ajoute les routes nécessaires à l'application Flask.
+    
+    Args:
+        app: L'application Flask
+        lua_path: Chemin vers le répertoire des fichiers Lua
+        skip_routes: Si True, ne pas ajouter les routes automatiquement (pour éviter les conflits)
+    
+    Returns:
+        Une instance de LuaIntegration
+    """
     global lua_integration
     lua_integration = LuaIntegration(lua_path)
     
-    # Ajouter les routes spéciales pour l'intégration Lua
-    add_lua_routes(app)
+    # Ajouter les routes spéciales pour l'intégration Lua, sauf si skip_routes est True
+    if not skip_routes:
+        add_lua_routes(app)
     
     return lua_integration
 

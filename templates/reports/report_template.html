@@ -230,6 +230,15 @@
                 <!-- Placeholder pour un graphique -->
                 <div id="chart"></div>
             </div>
+            
+            <!-- Données pour le graphique, encodées comme JSON et injectées par Jinja -->
+            <script id="chart-data" type="application/json">
+                {
+                    "labels": [{% for item in details %}"{{item.type|default('Non spécifié')}}"{% if not loop.last %},{% endif %}{% endfor %}],
+                    "allocations": [{% for item in details %}{{item.allocations|default(0)}}{% if not loop.last %},{% endif %}{% endfor %}],
+                    "returns": [{% for item in details %}{{item.returns|default(0)}}{% if not loop.last %},{% endif %}{% endfor %}]
+                }
+            </script>
             {% else %}
             <div class="no-data">Aucune donnée détaillée disponible pour cette période</div>
             {% endif %}
@@ -279,46 +288,44 @@
         </div>
     </div>
     
-    <!-- Script pour générer les données du graphique, entièrement séparé des templates Jinja -->
+    <!-- Script JavaScript pur, sans balises Jinja à l'intérieur -->
     <script>
     // Attendre que le DOM soit chargé
     document.addEventListener('DOMContentLoaded', function() {
-        // Vérifier si l'élément chart existe (créé seulement si des détails sont disponibles)
+        // Vérifier si l'élément chart existe
         const chartElement = document.getElementById('chart');
         if (!chartElement) return;
         
-        // Données pré-générées par le backend et injectées comme JSON
-        const chartData = {
-            labels: [],
-            datasets: [
-                {
-                    label: 'Allocations',
-                    data: [],
-                    backgroundColor: '#3498db'
-                },
-                {
-                    label: 'Retours',
-                    data: [],
-                    backgroundColor: '#2ecc71'
-                }
-            ]
-        };
+        // Vérifier si les données du graphique existent
+        const dataElement = document.getElementById('chart-data');
+        if (!dataElement) return;
         
-        // Récupérer les données depuis des éléments de données cachés, générés par Jinja
-        {% if details and details|length > 0 %}
-            // Utiliser les attributs data pour stocker les données du graphique
-            {% for item in details %}
-                // Ajouter chaque élément aux tableaux de données
-                chartData.labels.push("{{item.type|default('Non spécifié')}}");
-                chartData.datasets[0].data.push({{item.allocations|default(0)}});
-                chartData.datasets[1].data.push({{item.returns|default(0)}});
-            {% endfor %}
+        try {
+            // Récupérer les données JSON depuis l'élément script
+            const chartData = JSON.parse(dataElement.textContent);
+            
+            // Créer la structure de données pour Chart.js
+            const data = {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Allocations',
+                        data: chartData.allocations,
+                        backgroundColor: '#3498db'
+                    },
+                    {
+                        label: 'Retours',
+                        data: chartData.returns,
+                        backgroundColor: '#2ecc71'
+                    }
+                ]
+            };
             
             // Créer le graphique avec Chart.js
             const ctx = chartElement.getContext('2d');
             new Chart(ctx, {
                 type: 'bar',
-                data: chartData,
+                data: data,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -329,7 +336,9 @@
                     }
                 }
             });
-        {% endif %}
+        } catch (error) {
+            console.error('Erreur lors de la création du graphique:', error);
+        }
     });
     </script>
 </body>

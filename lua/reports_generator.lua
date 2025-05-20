@@ -39,7 +39,7 @@ local function simulate_usage_data(start_date, end_date)
     return {
         period = {
             start = start_date,
-            end = end_date,
+            ["end"] = end_date, -- "end" est un mot-clé réservé en Lua, il doit être entre crochets
             days = math.floor((end_ts - start_ts) / (24 * 60 * 60))
         },
         totals = {
