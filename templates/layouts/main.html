@@ -19,12 +19,24 @@
                 <li><a href="{{ url_for('dashboard') }}" {% if request.path == url_for('dashboard') %}class="active"{% endif %}>Tableau de bord</a></li>
                 <li><a href="{{ url_for('about') }}" {% if request.path == url_for('about') %}class="active"{% endif %}>À propos</a></li>
                 <li><a href="{{ url_for('stage') }}" {% if request.path == url_for('stage') %}class="active"{% endif %}>Mon Stage</a></li>
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('logout') }}">Déconnexion</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('login') }}" {% if request.path == url_for('login') %}class="active"{% endif %}>Connexion</a></li>
+                {% endif %}
             </ul>
         </nav>
     </header>
 
     <main>
-        {% block content %}{% endblock %}
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
+        
+        {% if request.path != url_for('dashboard') %}
+            <!-- Espace supplémentaire pour toutes les pages sauf le tableau de bord -->
+            <div class="footer-spacer"></div>
+        {% endif %}
     </main>
 
     <footer>
@@ -33,18 +45,5 @@
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block scripts %}{% endblock %}
-    
-    <script>
-        // Enregistrement du service worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/static/js/sw.js').then(function(registration) {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, function(err) {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
-            });
-        }
-    </script>
 </body>
 </html>

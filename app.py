@@ -153,13 +153,9 @@ def profile():
 
 @app.route("/")
 def index():
-    try:
-        welcome_message = "Bienvenue dans le Système de Gestion de Matériel"
-        return render_template('index.html', message=welcome_message)
-    except Exception as e:
-        logger.error(f"Erreur sur la page d'accueil: {e}")
-        traceback.print_exc()
-        return render_template('error.html', error="Une erreur est survenue sur la page d'accueil")
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('auth/login.html')
 
 @app.route("/dashboard")
 @login_required
