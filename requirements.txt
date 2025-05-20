@@ -1,4 +1,13 @@
+# Dépendances principales
 flask==3.0.0
 python-dotenv==1.0.0
 lupa==2.0
 gunicorn==21.2.0
+
+# Dépendances pour l'authentification
+flask-login==0.6.3
+flask-bcrypt==1.0.1
+
+# Dépendances pour le développement (optionnelles)
+pytest==7.4.0
+flake8==6.1.0

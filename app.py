@@ -1,11 +1,16 @@
-from flask import Flask, render_template, jsonify, redirect, url_for, request
+from flask import Flask, render_template, jsonify, redirect, url_for, request, flash
 import os
 import sys
 import traceback
 from dotenv import load_dotenv
 import logging
 import json
-import time
+import time 
+
+# Imports pour l'authentification
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user  # type: ignore
+from flask_bcrypt import Bcrypt  # type: ignore
+from models.user import User, get_user_by_id, get_user_by_username, get_user_by_email, add_user 
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, 
@@ -18,6 +23,18 @@ load_dotenv()
 # Initialiser l'application Flask
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-this')
+
+# Initialiser Bcrypt et LoginManager
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Veuillez vous connecter pour accéder à cette page.'
+login_manager.login_message_category = 'info'
+
+# User loader pour Flask-Login
+@login_manager.user_loader
+def load_user(user_id):
+    return get_user_by_id(user_id)
 
 # Importer et initialiser l'intégration Lua après l'initialisation de l'app
 from lua_integration import init_lua
@@ -58,6 +75,82 @@ def count_material_types():
         types.add(material["type"])
     return len(types)
 
+# Routes d'authentification
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember = 'remember' in request.form
+        
+        # Chercher l'utilisateur par nom d'utilisateur ou email
+        user = get_user_by_username(username) or get_user_by_email(username)
+        
+        if user and bcrypt.check_password_hash(user.password, password):
+            login_user(user, remember=remember)
+            flash('Connexion réussie !', 'success')
+            
+            # Rediriger vers la page demandée ou le tableau de bord
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('dashboard'))
+        else:
+            flash('Échec de la connexion. Vérifiez vos identifiants.', 'error')
+    
+    return render_template('auth/login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Vous avez été déconnecté.', 'info')
+    return redirect(url_for('login'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        name = request.form.get('name')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validation de base
+        if get_user_by_username(username):
+            flash('Ce nom d\'utilisateur est déjà pris.', 'error')
+            return render_template('auth/register.html')
+        
+        if get_user_by_email(email):
+            flash('Cet email est déjà utilisé.', 'error')
+            return render_template('auth/register.html')
+        
+        if password != confirm_password:
+            flash('Les mots de passe ne correspondent pas.', 'error')
+            return render_template('auth/register.html')
+        
+        if len(password) < 6:
+            flash('Le mot de passe doit contenir au moins 6 caractères.', 'error')
+            return render_template('auth/register.html')
+        
+        # Hachage du mot de passe et création de l'utilisateur
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        user = add_user(username, email, hashed_password, role='user', name=name)
+        
+        flash('Inscription réussie ! Vous pouvez maintenant vous connecter.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('auth/register.html')
+
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('auth/profile.html')
+
 @app.route("/")
 def index():
     try:
@@ -69,6 +162,7 @@ def index():
         return render_template('error.html', error="Une erreur est survenue sur la page d'accueil")
 
 @app.route("/dashboard")
+@login_required
 def dashboard():
     try:
         # Données de base pour le dashboard
@@ -147,6 +241,7 @@ def api_materials():
 # Nouvelles routes pour le système de notifications
 
 @app.route("/notifications")
+@login_required
 def notifications_dashboard():
     """Page du tableau de bord des notifications."""
     try:
@@ -157,6 +252,7 @@ def notifications_dashboard():
         return render_template('error.html', error="Erreur sur la page des notifications")
 
 @app.route("/api/notifications/add", methods=["POST"])
+@login_required
 def add_notification():
     """Route pour ajouter une notification (version simplifiée)."""
     data = request.json
@@ -183,6 +279,7 @@ def add_notification():
         return jsonify({"success": False, "message": f"Erreur lors de l'ajout de la notification: {str(e)}"}), 500
 
 @app.route("/api/notifications/broadcast", methods=["POST"])
+@login_required
 def broadcast_notification():
     """Route pour diffuser une notification à tous les utilisateurs."""
     data = request.json
@@ -208,6 +305,7 @@ def broadcast_notification():
         return jsonify({"success": False, "message": f"Erreur lors de la diffusion de la notification: {str(e)}"}), 500
 
 @app.route("/api/notifications/delete", methods=["POST"])
+@login_required
 def delete_notification():
     """Route pour supprimer une notification."""
     data = request.json
@@ -220,6 +318,7 @@ def delete_notification():
     return jsonify({"success": True})
 
 @app.route("/api/notifications/mark-all-read", methods=["POST"])
+@login_required
 def mark_all_notifications_read():
     """Route pour marquer toutes les notifications d'un utilisateur comme lues."""
     data = request.json
@@ -234,6 +333,7 @@ def mark_all_notifications_read():
 
 # Route temporaire pour recharger le module de règles (accepte GET et POST)
 @app.route("/api/reload_rules", methods=["GET", "POST"])
+@login_required
 def reload_rules_module():
     """Route temporaire pour recharger le module de règles pendant le développement."""
     try:
@@ -253,6 +353,7 @@ def reload_rules_module():
 # Routes utilisant Lua
 
 @app.route("/api/allocate", methods=["POST"])
+@login_required
 def allocate_material():
     """Route pour allouer un matériel à un utilisateur."""
     # Vérifier si les données sont présentes et au bon format
@@ -264,7 +365,7 @@ def allocate_material():
         return jsonify({"success": False, "message": "Données manquantes"}), 400
         
     material_id = data.get('material_id')
-    user_id = data.get('user_id')
+    user_id = data.get('user_id', current_user.id)  # Utiliser l'ID de l'utilisateur connecté par défaut
     quantity = data.get('quantity', 1)
     
     # Log des données reçues pour debug
@@ -320,6 +421,7 @@ def allocate_material():
         return jsonify({"success": False, "message": f"Erreur serveur lors de l'allocation: {str(e)}"}), 500
 
 @app.route("/api/reports/usage", methods=["GET"])
+@login_required
 def material_usage_report():
     """Route pour générer un rapport d'utilisation du matériel."""
     start_date = request.args.get('start_date', '2025-01-01')
@@ -348,6 +450,7 @@ def material_usage_report():
         return jsonify({"error": "Erreur lors de la génération du rapport: " + str(e)}), 500
 
 @app.route("/api/inventory/report", methods=["GET"])
+@login_required
 def inventory_report():
     """Route pour générer un rapport d'inventaire."""
     try:
@@ -368,9 +471,10 @@ def inventory_report():
         return jsonify({"error": "Erreur lors de la génération du rapport: " + str(e)}), 500
 
 @app.route("/api/notifications", methods=["GET"])
+@login_required
 def get_notifications():
     """Route pour récupérer les notifications d'un utilisateur."""
-    user_id = request.args.get('user_id')
+    user_id = request.args.get('user_id', current_user.id)  # Utiliser l'ID de l'utilisateur connecté par défaut
     include_read = request.args.get('include_read', 'false').lower() == 'true'
     
     if not user_id:
@@ -404,6 +508,7 @@ def get_notifications():
         return jsonify({"error": "Erreur lors de la récupération des notifications"}), 500
 
 @app.route("/api/notifications/mark-read", methods=["POST"])
+@login_required
 def mark_notification_read():
     """Route pour marquer une notification comme lue."""
     data = request.json
@@ -416,6 +521,7 @@ def mark_notification_read():
     return jsonify({"success": True})
 
 @app.route("/api/cache/stats", methods=["GET"])
+@login_required
 def cache_stats():
     """Route pour obtenir des statistiques sur le cache."""
     try:
@@ -431,6 +537,7 @@ def cache_stats():
         return jsonify({"error": "Erreur lors de la récupération des stats du cache"}), 500
 
 @app.route("/reports")
+@login_required
 def reports_page():
     """Page des rapports."""
     try:
@@ -443,8 +550,13 @@ def reports_page():
 # Routes API pour Lua - DÉFINIES DIRECTEMENT ICI, PAS DANS L'INTÉGRATION LUA
 
 @app.route("/api/lua/modules/list", methods=["GET"])
+@login_required
 def list_lua_modules():
     """Liste tous les modules Lua chargés."""
+    # Vérifier si l'utilisateur est admin
+    if not current_user.is_admin():
+        return jsonify({"error": "Accès non autorisé"}), 403
+        
     try:
         if lua_integration and hasattr(lua_integration, 'modules'):
             modules = list(lua_integration.modules.keys())
@@ -457,8 +569,13 @@ def list_lua_modules():
         return jsonify({"error": "Erreur lors de la liste des modules Lua"}), 500
 
 @app.route("/api/lua/modules/reload", methods=["POST", "GET"])
+@login_required
 def reload_all_lua_modules():
     """Recharge tous les modules Lua."""
+    # Vérifier si l'utilisateur est admin
+    if not current_user.is_admin():
+        return jsonify({"error": "Accès non autorisé"}), 403
+        
     try:
         if lua_integration:
             lua_integration.reload_all_modules()
@@ -471,8 +588,13 @@ def reload_all_lua_modules():
         return jsonify({"error": "Erreur lors du rechargement des modules Lua"}), 500
 
 @app.route("/api/lua/module/<module_name>/reload", methods=["POST", "GET"])
+@login_required
 def reload_lua_module(module_name):
     """Recharge un module Lua spécifique."""
+    # Vérifier si l'utilisateur est admin
+    if not current_user.is_admin():
+        return jsonify({"error": "Accès non autorisé"}), 403
+        
     try:
         if lua_integration:
             module = lua_integration.reload_module(module_name)
@@ -489,8 +611,14 @@ def reload_lua_module(module_name):
 
 # Nouvelle page admin pour les modules Lua
 @app.route("/admin/lua-modules")
+@login_required
 def lua_modules_admin_page():
     """Page d'administration des modules Lua."""
+    # Vérifier si l'utilisateur est admin
+    if not current_user.is_admin():
+        flash("Vous n'avez pas l'autorisation d'accéder à cette page.", "error")
+        return redirect(url_for('dashboard'))
+        
     try:
         if lua_integration and hasattr(lua_integration, 'modules'):
             modules = list(lua_integration.modules.keys())
