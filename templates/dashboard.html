@@ -491,25 +491,39 @@
             <div class="dashboard-stats-container">
                 <div class="stat-card fade-in-up">
                     <h3>Total des matériels</h3>
-                    <p class="stat-value" id="totalMaterials">0</p>
+                    <p class="stat-value">{{ total_materials }}</p>
                 </div>
                 
                 <div class="stat-card fade-in-up" style="animation-delay: 0.1s;">
                     <h3>Disponibles</h3>
-                    <p class="stat-value" id="availableMaterials">0</p>
+                    <p class="stat-value">{{ available_materials }}</p>
                 </div>
                 
                 <div class="stat-card fade-in-up" style="animation-delay: 0.2s;">
                     <h3>Types</h3>
-                    <p class="stat-value" id="materialTypes">0</p>
+                    <p class="stat-value">{{ material_types }}</p>
                 </div>
 
-                <div id="lowStockCard" class="stat-card fade-in-up" style="animation-delay: 0.3s; display: none;">
+                {% if low_stock_count > 0 %}
+                <div class="stat-card fade-in-up" style="animation-delay: 0.3s;">
                     <h3>En stock limité</h3>
-                    <p class="stat-value-danger" id="lowStockCount">0</p>
+                    <p class="stat-value-danger">{{ low_stock_count }}</p>
                 </div>
+                {% endif %}
             </div>
-            
+
+            <!-- Boutons d'administration pour les admins -->
+            {% if current_user.is_admin() %}
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="{{ url_for('admin_inventory') }}" class="btn" style="background-color: #e74c3c; margin-right: 10px;">
+                    <i class="fas fa-cogs"></i> Gestion des Stocks
+                </a>
+                <a href="{{ url_for('lua_modules_admin_page') }}" class="btn" style="background-color: #9b59b6;">
+                    <i class="fas fa-code"></i> Administration Lua
+                </a>
+            </div>
+            {% endif %}
+
             <!-- Widgets -->
             <div id="dashboard-widgets" class="dashboard-grid">
                 <!-- Aperçu des stocks -->

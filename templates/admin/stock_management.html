@@ -2,37 +2,597 @@
 
 {% block title %}Gestion des Stocks - Système de Gestion de Matériel{% endblock %}
 
+{% block head_extra %}
+<style>
+    .admin-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .admin-section {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .admin-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .admin-table th {
+        background-color: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        border-bottom: 2px solid #ddd;
+    }
+    
+    .admin-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .admin-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .action-btn {
+        padding: 5px 10px;
+        margin-right: 5px;
+        background-color: #3498db;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .action-btn.delete {
+        background-color: #e74c3c;
+    }
+    
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+    
+    .filter-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .filter-group {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 1000;
+    }
+    
+    .modal-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    
+    .close {
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .close:hover {
+        color: #e74c3c;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .import-export {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .low-stock {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+    
+    .btn-cancel {
+        background-color: #95a5a6;
+    }
+    
+    .select-control {
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        min-width: 150px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- Vérification des droits d'administrateur -->
-{% if not current_user.is_admin() %}
-    <div class="alert alert-danger">
-        <p>Vous n'avez pas l'autorisation d'accéder à cette page.</p>
-        <p>Redirection automatique vers le tableau de bord...</p>
+<div class="admin-container">
+    <div class="admin-section">
+        <div class="admin-header">
+            <h1>Gestion des Stocks</h1>
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn">Retour au tableau de bord</a>
+            </div>
+        </div>
+        
+        <div class="import-export">
+            <button id="addMaterialBtn" class="btn">Ajouter un matériel</button>
+            <button id="importBtn" class="btn">Importer CSV</button>
+            <a href="{{ url_for('api_admin_materials_export') }}" class="btn">Exporter CSV</a>
+        </div>
+        
+        <div class="filter-controls">
+            <div class="filter-group">
+                <input type="text" id="searchInput" class="form-control" placeholder="Rechercher...">
+                <select id="typeFilter" class="select-control">
+                    <option value="all">Tous les types</option>
+                    <option value="desktop">Ordinateurs de bureau</option>
+                    <option value="laptop">Ordinateurs portables</option>
+                    <option value="screen">Écrans</option>
+                </select>
+            </div>
+            <div>
+                <span id="materialCount">0</span> matériels trouvés
+            </div>
+        </div>
+        
+        <table class="admin-table" id="materialsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Type</th>
+                    <th>Disponibles</th>
+                    <th>Total</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Sera rempli par JavaScript -->
+            </tbody>
+        </table>
     </div>
-    <script>
-        setTimeout(function() {
-            window.location.href = "{{ url_for('dashboard') }}";
-        }, 3000);
-    </script>
-{% else %}
-<!-- HTML pour la gestion des stocks... -->
+</div>
 
-<!-- Données pour le JavaScript -->
-<script id="stock-data" type="application/json">
-{{ materials|tojson|safe }}
-</script>
+<!-- Modal pour ajouter/modifier un matériel -->
+<div id="materialModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2 id="modalTitle">Ajouter un matériel</h2>
+        
+        <form id="materialForm">
+            <input type="hidden" id="materialId">
+            
+            <div class="form-group">
+                <label for="name">Nom</label>
+                <input type="text" id="name" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type" class="form-control" required>
+                    <option value="desktop">Ordinateur de bureau</option>
+                    <option value="laptop">Ordinateur portable</option>
+                    <option value="screen">Écran</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="available">Disponibles</label>
+                <input type="number" id="available" class="form-control" min="0" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="total">Total</label>
+                <input type="number" id="total" class="form-control" min="0" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-cancel" id="cancelBtn">Annuler</button>
+                <button type="submit" class="btn">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-<script id="api-urls" type="application/json">
-{
-  "materials": "{{ url_for('api_admin_materials') }}",
-  "import": "{{ url_for('api_admin_materials_import') }}",
-  "export": "{{ url_for('api_admin_materials_export') }}",
-  "dashboard": "{{ url_for('dashboard') }}"
-}
-</script>
-{% endif %}
+<!-- Modal pour importer CSV -->
+<div id="importModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Importer des matériels depuis un CSV</h2>
+        
+        <form id="importForm" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="csvFile">Fichier CSV</label>
+                <input type="file" id="csvFile" class="form-control" accept=".csv" required>
+            </div>
+            
+            <p>Le fichier CSV doit avoir les colonnes suivantes: nom, type, disponible, total, description</p>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-cancel" id="cancelImportBtn">Annuler</button>
+                <button type="submit" class="btn">Importer</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/stock_management.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Éléments DOM
+    const materialsTable = document.getElementById('materialsTable').getElementsByTagName('tbody')[0];
+    const searchInput = document.getElementById('searchInput');
+    const typeFilter = document.getElementById('typeFilter');
+    const materialCount = document.getElementById('materialCount');
+    const addMaterialBtn = document.getElementById('addMaterialBtn');
+    const importBtn = document.getElementById('importBtn');
+    const materialModal = document.getElementById('materialModal');
+    const importModal = document.getElementById('importModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const closeButtons = document.getElementsByClassName('close');
+    const materialForm = document.getElementById('materialForm');
+    const importForm = document.getElementById('importForm');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const cancelImportBtn = document.getElementById('cancelImportBtn');
+    
+    // Variables globales
+    let materials = [];
+    
+    // Fonction pour charger les matériels
+    function loadMaterials() {
+        fetch('/api/materials')
+            .then(response => response.json())
+            .then(data => {
+                materials = data;
+                renderMaterials();
+                filterMaterials();
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur lors du chargement des matériels');
+            });
+    }
+    
+    // Fonction pour rendre les matériels dans le tableau
+    function renderMaterials() {
+        materialsTable.innerHTML = '';
+        
+        materials.forEach(material => {
+            const row = materialsTable.insertRow();
+            
+            // Calculer si le stock est bas
+            const isLowStock = material.available / material.total < 0.2;
+            
+            row.innerHTML = `
+                <td>${material.id}</td>
+                <td>${material.name}</td>
+                <td>${formatType(material.type)}</td>
+                <td class="${isLowStock ? 'low-stock' : ''}">${material.available}</td>
+                <td>${material.total}</td>
+                <td>${material.description}</td>
+                <td>
+                    <button class="action-btn edit-btn" data-id="${material.id}">Modifier</button>
+                    <button class="action-btn delete delete-btn" data-id="${material.id}">Supprimer</button>
+                </td>
+            `;
+        });
+        
+        // Attacher les événements
+        attachEventListeners();
+    }
+    
+    // Fonction pour formater le type
+    function formatType(type) {
+        const types = {
+            'desktop': 'Ordinateur de bureau',
+            'laptop': 'Ordinateur portable',
+            'screen': 'Écran'
+        };
+        
+        return types[type] || type;
+    }
+    
+    // Fonction pour filtrer les matériels
+    function filterMaterials() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedType = typeFilter.value;
+        
+        let filteredMaterials = materials;
+        
+        // Filtrer par terme de recherche
+        if (searchTerm) {
+            filteredMaterials = filteredMaterials.filter(material => 
+                material.name.toLowerCase().includes(searchTerm) || 
+                material.description.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        // Filtrer par type
+        if (selectedType !== 'all') {
+            filteredMaterials = filteredMaterials.filter(material => 
+                material.type === selectedType
+            );
+        }
+        
+        // Mettre à jour le tableau
+        materialsTable.innerHTML = '';
+        
+        filteredMaterials.forEach(material => {
+            const row = materialsTable.insertRow();
+            
+            // Calculer si le stock est bas
+            const isLowStock = material.available / material.total < 0.2;
+            
+            row.innerHTML = `
+                <td>${material.id}</td>
+                <td>${material.name}</td>
+                <td>${formatType(material.type)}</td>
+                <td class="${isLowStock ? 'low-stock' : ''}">${material.available}</td>
+                <td>${material.total}</td>
+                <td>${material.description}</td>
+                <td>
+                    <button class="action-btn edit-btn" data-id="${material.id}">Modifier</button>
+                    <button class="action-btn delete delete-btn" data-id="${material.id}">Supprimer</button>
+                </td>
+            `;
+        });
+        
+        // Mettre à jour le compteur
+        materialCount.textContent = filteredMaterials.length;
+        
+        // Attacher les événements
+        attachEventListeners();
+    }
+    
+    // Fonction pour attacher les écouteurs d'événements
+    function attachEventListeners() {
+        // Boutons de modification
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const materialId = parseInt(this.getAttribute('data-id'));
+                editMaterial(materialId);
+            });
+        });
+        
+        // Boutons de suppression
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const materialId = parseInt(this.getAttribute('data-id'));
+                deleteMaterial(materialId);
+            });
+        });
+    }
+    
+    // Fonction pour éditer un matériel
+    function editMaterial(materialId) {
+        const material = materials.find(m => m.id === materialId);
+        
+        if (material) {
+            // Remplir le formulaire
+            document.getElementById('materialId').value = material.id;
+            document.getElementById('name').value = material.name;
+            document.getElementById('type').value = material.type;
+            document.getElementById('available').value = material.available;
+            document.getElementById('total').value = material.total;
+            document.getElementById('description').value = material.description;
+            
+            // Modifier le titre du modal
+            modalTitle.textContent = 'Modifier un matériel';
+            
+            // Afficher le modal
+            materialModal.style.display = 'block';
+        }
+    }
+    
+    // Fonction pour supprimer un matériel
+    function deleteMaterial(materialId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce matériel ?')) {
+            fetch('/api/admin/materials', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: materialId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Actualiser la liste
+                    loadMaterials();
+                } else {
+                    alert('Erreur: ' + (data.error || 'Une erreur est survenue'));
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur lors de la suppression');
+            });
+        }
+    }
+    
+    // Événement pour le bouton d'ajout
+    addMaterialBtn.addEventListener('click', function() {
+        // Réinitialiser le formulaire
+        materialForm.reset();
+        document.getElementById('materialId').value = '';
+        
+        // Modifier le titre du modal
+        modalTitle.textContent = 'Ajouter un matériel';
+        
+        // Afficher le modal
+        materialModal.style.display = 'block';
+    });
+    
+    // Événement pour le bouton d'import
+    importBtn.addEventListener('click', function() {
+        // Réinitialiser le formulaire
+        importForm.reset();
+        
+        // Afficher le modal
+        importModal.style.display = 'block';
+    });
+    
+    // Événements pour fermer les modals
+    for (let i = 0; i < closeButtons.length; i++) {
+        closeButtons[i].addEventListener('click', function() {
+            materialModal.style.display = 'none';
+            importModal.style.display = 'none';
+        });
+    }
+    
+    // Événements pour les boutons d'annulation
+    cancelBtn.addEventListener('click', function() {
+        materialModal.style.display = 'none';
+    });
+    
+    cancelImportBtn.addEventListener('click', function() {
+        importModal.style.display = 'none';
+    });
+    
+    // Fermer le modal en cliquant en dehors
+    window.addEventListener('click', function(event) {
+        if (event.target == materialModal) {
+            materialModal.style.display = 'none';
+        } else if (event.target == importModal) {
+            importModal.style.display = 'none';
+        }
+    });
+    
+    // Soumission du formulaire de matériel
+    materialForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const materialId = document.getElementById('materialId').value;
+        const materialData = {
+            name: document.getElementById('name').value,
+            type: document.getElementById('type').value,
+            available: parseInt(document.getElementById('available').value),
+            total: parseInt(document.getElementById('total').value),
+            description: document.getElementById('description').value
+        };
+        
+        // Ajouter l'ID si on est en mode édition
+        if (materialId) {
+            materialData.id = parseInt(materialId);
+        }
+        
+        fetch('/api/admin/materials', {
+            method: materialId ? 'PUT' : 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(materialData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Fermer le modal
+                materialModal.style.display = 'none';
+                
+                // Actualiser la liste
+                loadMaterials();
+            } else {
+                alert('Erreur: ' + (data.error || 'Une erreur est survenue'));
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors de l\'enregistrement');
+        });
+    });
+    
+    // Soumission du formulaire d'import
+    importForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Veuillez sélectionner un fichier CSV');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        fetch('/api/admin/materials/import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Fermer le modal
+                importModal.style.display = 'none';
+                
+                // Afficher un message
+                alert(`${data.count} matériel(s) importé(s) avec succès`);
+                
+                // Actualiser la liste
+                loadMaterials();
+            } else {
+                alert('Erreur: ' + (data.error || 'Une erreur est survenue'));
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors de l\'import');
+        });
+    });
+    
+    // Événements de filtrage
+    searchInput.addEventListener('input', filterMaterials);
+    typeFilter.addEventListener('change', filterMaterials);
+    
+    // Charger les matériels au démarrage
+    loadMaterials();
+});
+</script>
 {% endblock %}

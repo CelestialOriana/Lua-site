@@ -796,119 +796,241 @@ def api_admin_materials():
         return jsonify({"error": "Erreur serveur: " + str(e)}), 500
 
 # Routes pour l'importation/exportation CSV
-@app.route("/api/admin/materials/import", methods=["POST"])
+@app.route("/api/admin/materials", methods=["GET", "POST", "PUT", "DELETE"])
 @login_required
 @admin_required
-def api_admin_materials_import():
-    """API pour importer des matériels depuis un CSV (admin uniquement)."""
+def api_admin_materials():
+    """API pour gérer les matériels (admin uniquement)."""
     try:
-        # Vérifier si un fichier a été envoyé
-        if 'file' not in request.files:
-            return jsonify({"error": "Aucun fichier n'a été envoyé"}), 400
+        # Global pour pouvoir modifier la variable
+        global MATERIALS
         
-        file = request.files['file']
+        # GET: Récupérer tous les matériels
+        if request.method == "GET":
+            return jsonify(MATERIALS)
         
-        # Vérifier si le fichier est vide
-        if file.filename == '':
-            return jsonify({"error": "Nom de fichier vide"}), 400
+        # POST: Ajouter un nouveau matériel
+        elif request.method == "POST":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation des données
+            if not all(key in data for key in ["name", "type", "available", "total"]):
+                return jsonify({"error": "Données incomplètes"}), 400
+            
+            # Créer un nouvel ID pour le matériel
+            new_id = max([m["id"] for m in MATERIALS]) + 1 if MATERIALS else 1
+            
+            # Créer le nouveau matériel
+            new_material = {
+                "id": new_id,
+                "name": data["name"],
+                "type": data["type"],
+                "available": int(data["available"]),
+                "total": int(data["total"]),
+                "description": data.get("description", "")
+            }
+            
+            # Ajouter à la liste
+            MATERIALS.append(new_material)
+            
+            # Log pour debugging
+            logger.info(f"Nouveau matériel ajouté: {new_material}")
+            logger.info(f"Total des matériels: {calculate_total_materials()}")
+            logger.info(f"Disponibles: {sum(material['available'] for material in MATERIALS)}")
+            
+            return jsonify({"success": True, "material": new_material})
         
-        # Vérifier l'extension
-        if not file.filename.endswith('.csv'):
-            return jsonify({"error": "Le fichier doit être au format CSV"}), 400
-        
-        # Lire le contenu du fichier
-        content = file.read().decode('utf-8')
-        lines = content.split('\n')
-        
-        # Traiter les lignes
-        imported_materials = []
-        next_id = max([m["id"] for m in MATERIALS]) + 1
-        
-        for i in range(1, len(lines)):
-            line = lines[i].strip()
-            if line:
-                columns = line.split(',')
-                
-                if len(columns) >= 4:
-                    # Créer un nouveau matériel
-                    new_material = {
-                        "id": next_id,
-                        "name": columns[0].strip(),
-                        "type": columns[1].strip(),
-                        "available": int(columns[2]) if columns[2].strip().isdigit() else 0,
-                        "total": int(columns[3]) if columns[3].strip().isdigit() else 0,
-                        "description": columns[4].strip() if len(columns) > 4 else ""
-                    }
+        # PUT: Mettre à jour un matériel existant
+        elif request.method == "PUT":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation de l'ID
+            if "id" not in data:
+                return jsonify({"error": "ID du matériel requis"}), 400
+            
+            # Trouver le matériel à mettre à jour
+            material_found = False
+            for i, material in enumerate(MATERIALS):
+                if material["id"] == data["id"]:
+                    material_found = True
+                    # Mettre à jour les champs
+                    MATERIALS[i]["name"] = data.get("name", material["name"])
+                    MATERIALS[i]["type"] = data.get("type", material["type"])
+                    MATERIALS[i]["available"] = int(data.get("available", material["available"]))
+                    MATERIALS[i]["total"] = int(data.get("total", material["total"]))
+                    MATERIALS[i]["description"] = data.get("description", material["description"])
                     
-                    # Valider le type
-                    if new_material["type"] not in ["desktop", "laptop", "screen"]:
-                        new_material["type"] = "desktop"  # Type par défaut
+                    # Log pour debugging
+                    logger.info(f"Matériel mis à jour: {MATERIALS[i]}")
+                    logger.info(f"Total des matériels: {calculate_total_materials()}")
+                    logger.info(f"Disponibles: {sum(material['available'] for material in MATERIALS)}")
                     
-                    # Valider les quantités
-                    if new_material["available"] > new_material["total"]:
-                        new_material["available"] = new_material["total"]
+                    return jsonify({"success": True, "material": MATERIALS[i]})
+            
+            if not material_found:
+                return jsonify({"error": f"Matériel avec ID {data['id']} non trouvé"}), 404
+        
+        # DELETE: Supprimer un matériel
+        elif request.method == "DELETE":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation de l'ID
+            if "id" not in data:
+                return jsonify({"error": "ID du matériel requis"}), 400
+            
+            # Trouver et supprimer le matériel
+            material_id = data["id"]
+            material_found = False
+            
+            for i, material in enumerate(MATERIALS):
+                if material["id"] == material_id:
+                    material_found = True
+                    # Supprimer le matériel
+                    deleted_material = MATERIALS.pop(i)
                     
-                    MATERIALS.append(new_material)
-                    imported_materials.append(new_material)
-                    next_id += 1
-        
-        return jsonify({
-            "success": True, 
-            "count": len(imported_materials),
-            "materials": imported_materials
-        })
-        
+                    # Log pour debugging
+                    logger.info(f"Matériel supprimé: {deleted_material}")
+                    logger.info(f"Total des matériels: {calculate_total_materials()}")
+                    logger.info(f"Disponibles: {sum(material['available'] for material in MATERIALS) if MATERIALS else 0}")
+                    
+                    return jsonify({"success": True})
+            
+            if not material_found:
+                return jsonify({"error": f"Matériel avec ID {material_id} non trouvé"}), 404
+            
     except Exception as e:
-        logger.error(f"Erreur importation CSV: {str(e)}")
+        logger.error(f"Erreur API materials: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": "Erreur serveur: " + str(e)}), 500
 
 @app.route("/api/admin/materials/export", methods=["GET"])
 @login_required
 @admin_required
-def api_admin_materials_export():
-    """API pour exporter les matériels en CSV (admin uniquement)."""
+def api_admin_materials():
+    """API pour gérer les matériels (admin uniquement)."""
     try:
-        # Filtrage optionnel
-        type_filter = request.args.get('type', 'all')
-        status_filter = request.args.get('status', 'all')
+        # Global pour pouvoir modifier la variable
+        global MATERIALS
         
-        # Filtrer les matériels
-        filtered_materials = MATERIALS
+        # GET: Récupérer tous les matériels
+        if request.method == "GET":
+            return jsonify(MATERIALS)
         
-        # Filtrer par type
-        if type_filter != 'all':
-            filtered_materials = [m for m in filtered_materials if m["type"] == type_filter]
-        
-        # Filtrer par statut
-        if status_filter == 'lowstock':
-            filtered_materials = [m for m in filtered_materials if 
-                                 m["available"] > 0 and 
-                                 m["available"] / m["total"] < 0.2]
-        elif status_filter == 'outofstock':
-            filtered_materials = [m for m in filtered_materials if m["available"] == 0]
-        elif status_filter == 'instock':
-            filtered_materials = [m for m in filtered_materials if
-                                 m["available"] / m["total"] >= 0.2]
-        
-        # Créer le contenu CSV
-        csv_content = "nom,type,disponible,total,description\n"
-        
-        for material in filtered_materials:
-            # Échapper les guillemets dans la description
-            description = material.get("description", "").replace('"', '""')
+        # POST: Ajouter un nouveau matériel
+        elif request.method == "POST":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
             
-            csv_content += f"{material['name']},{material['type']},{material['available']},{material['total']},\"{description}\"\n"
+            data = request.json
+            
+            # Validation des données
+            if not all(key in data for key in ["name", "type", "available", "total"]):
+                return jsonify({"error": "Données incomplètes"}), 400
+            
+            # Créer un nouvel ID pour le matériel
+            new_id = max([m["id"] for m in MATERIALS]) + 1 if MATERIALS else 1
+            
+            # Créer le nouveau matériel
+            new_material = {
+                "id": new_id,
+                "name": data["name"],
+                "type": data["type"],
+                "available": int(data["available"]),
+                "total": int(data["total"]),
+                "description": data.get("description", "")
+            }
+            
+            # Ajouter à la liste
+            MATERIALS.append(new_material)
+            
+            # Log pour debugging
+            logger.info(f"Nouveau matériel ajouté: {new_material}")
+            logger.info(f"Total des matériels: {calculate_total_materials()}")
+            logger.info(f"Disponibles: {sum(material['available'] for material in MATERIALS)}")
+            
+            return jsonify({"success": True, "material": new_material})
         
-        # Créer une réponse avec le fichier CSV
-        response = make_response(csv_content)
-        response.headers["Content-Disposition"] = "attachment; filename=materiels_export.csv"
-        response.headers["Content-Type"] = "text/csv; charset=utf-8"
+        # PUT: Mettre à jour un matériel existant
+        elif request.method == "PUT":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation de l'ID
+            if "id" not in data:
+                return jsonify({"error": "ID du matériel requis"}), 400
+            
+            # Trouver le matériel à mettre à jour
+            material_found = False
+            for i, material in enumerate(MATERIALS):
+                if material["id"] == data["id"]:
+                    material_found = True
+                    # Mettre à jour les champs
+                    MATERIALS[i]["name"] = data.get("name", material["name"])
+                    MATERIALS[i]["type"] = data.get("type", material["type"])
+                    MATERIALS[i]["available"] = int(data.get("available", material["available"]))
+                    MATERIALS[i]["total"] = int(data.get("total", material["total"]))
+                    MATERIALS[i]["description"] = data.get("description", material["description"])
+                    
+                    # Log pour debugging
+                    logger.info(f"Matériel mis à jour: {MATERIALS[i]}")
+                    logger.info(f"Total des matériels: {calculate_total_materials()}")
+                    logger.info(f"Disponibles: {sum(material['available'] for material in MATERIALS)}")
+                    
+                    return jsonify({"success": True, "material": MATERIALS[i]})
+            
+            if not material_found:
+                return jsonify({"error": f"Matériel avec ID {data['id']} non trouvé"}), 404
         
-        return response
-        
+        # DELETE: Supprimer un matériel
+        elif request.method == "DELETE":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation de l'ID
+            if "id" not in data:
+                return jsonify({"error": "ID du matériel requis"}), 400
+            
+            # Trouver et supprimer le matériel
+            material_id = data["id"]
+            material_found = False
+            
+            for i, material in enumerate(MATERIALS):
+                if material["id"] == material_id:
+                    material_found = True
+                    # Supprimer le matériel
+                    deleted_material = MATERIALS.pop(i)
+                    
+                    # Log pour debugging
+                    logger.info(f"Matériel supprimé: {deleted_material}")
+                    logger.info(f"Total des matériels: {calculate_total_materials()}")
+                    logger.info(f"Disponibles: {sum(material['available'] for material in MATERIALS) if MATERIALS else 0}")
+                    
+                    return jsonify({"success": True})
+            
+            if not material_found:
+                return jsonify({"error": f"Matériel avec ID {material_id} non trouvé"}), 404
+            
     except Exception as e:
-        logger.error(f"Erreur exportation CSV: {str(e)}")
+        logger.error(f"Erreur API materials: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": "Erreur serveur: " + str(e)}), 500
 
