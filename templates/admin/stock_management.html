@@ -1,0 +1,267 @@
+{% extends "layouts/main.html" %}
+
+{% block title %}Gestion des stocks - Système de Gestion de Matériel{% endblock %}
+
+{% block content %}
+<section class="admin-section">
+    <h1>Gestion des stocks</h1>
+    
+    <div class="admin-actions">
+        <button id="addMaterialBtn" class="btn">Ajouter un nouveau matériel</button>
+        <button id="importBtn" class="btn">Importer depuis CSV</button>
+        <button id="exportBtn" class="btn">Exporter l'inventaire</button>
+    </div>
+    
+    <div class="material-management">
+        <h2>Inventaire actuel</h2>
+        
+        <div class="filter-controls">
+            <input type="text" id="searchInput" placeholder="Rechercher..." class="form-control">
+            <select id="typeFilter" class="select-control">
+                <option value="all">Tous les types</option>
+                <option value="desktop">Ordinateurs de bureau</option>
+                <option value="laptop">Ordinateurs portables</option>
+                <option value="screen">Écrans</option>
+            </select>
+        </div>
+        
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Type</th>
+                    <th>Disponible</th>
+                    <th>Total</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="materialsTableBody">
+                <!-- Rempli dynamiquement par JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Modal pour ajouter/modifier un matériel -->
+    <div id="materialModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Ajouter un matériel</h2>
+            
+            <form id="materialForm">
+                <input type="hidden" id="materialId">
+                
+                <div class="form-group">
+                    <label for="materialName">Nom</label>
+                    <input type="text" id="materialName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="materialType">Type</label>
+                    <select id="materialType" class="select-control" required>
+                        <option value="desktop">Ordinateur de bureau</option>
+                        <option value="laptop">Ordinateur portable</option>
+                        <option value="screen">Écran</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="materialAvailable">Disponible</label>
+                    <input type="number" id="materialAvailable" class="form-control" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="materialTotal">Total</label>
+                    <input type="number" id="materialTotal" class="form-control" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="materialDescription">Description</label>
+                    <textarea id="materialDescription" class="form-control" rows="3"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn">Enregistrer</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<script>
+    // Code JavaScript pour la gestion des interactions
+    document.addEventListener('DOMContentLoaded', function() {
+        const materials = [
+            {"id": 1, "name": "ThinkCentre Gen 2", "type": "desktop", "available": 5, "total": 10, "description": "Ordinateur de bureau ThinkCentre Gen 2"},
+            {"id": 2, "name": "ThinkCentre Gen 3", "type": "desktop", "available": 3, "total": 8, "description": "Ordinateur de bureau ThinkCentre Gen 3"},
+            {"id": 3, "name": "ThinkCentre Gen 4", "type": "desktop", "available": 7, "total": 15, "description": "Ordinateur de bureau ThinkCentre Gen 4"},
+            {"id": 4, "name": "ThinkCentre Gen 5", "type": "desktop", "available": 2, "total": 6, "description": "Ordinateur de bureau ThinkCentre Gen 5"},
+            {"id": 5, "name": "ThinkPad X1", "type": "laptop", "available": 4, "total": 10, "description": "Ordinateur portable ThinkPad X1"},
+            {"id": 6, "name": "ThinkPad T14", "type": "laptop", "available": 6, "total": 12, "description": "Ordinateur portable ThinkPad T14"},
+            {"id": 7, "name": "Écran Dell 24\"", "type": "screen", "available": 8, "total": 15, "description": "Écran Dell 24 pouces Full HD"},
+            {"id": 8, "name": "Écran Samsung 27\"", "type": "screen", "available": 5, "total": 10, "description": "Écran Samsung 27 pouces QHD"},
+            {"id": 9, "name": "Écran LG Ultrawide", "type": "screen", "available": 2, "total": 4, "description": "Écran LG 34 pouces Ultrawide"}
+        ];
+        
+        const materialsTableBody = document.getElementById('materialsTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const typeFilter = document.getElementById('typeFilter');
+        const modal = document.getElementById('materialModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const materialForm = document.getElementById('materialForm');
+        const addMaterialBtn = document.getElementById('addMaterialBtn');
+        
+        // Fonction pour afficher les matériels dans le tableau
+        function renderMaterials(materialsToRender) {
+            materialsTableBody.innerHTML = '';
+            
+            materialsToRender.forEach(material => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${material.id}</td>
+                    <td>${material.name}</td>
+                    <td>${getTypeLabel(material.type)}</td>
+                    <td>${material.available}</td>
+                    <td>${material.total}</td>
+                    <td class="actions">
+                        <button class="btn-edit" data-id="${material.id}">Éditer</button>
+                        <button class="btn-delete" data-id="${material.id}">Supprimer</button>
+                    </td>
+                `;
+                materialsTableBody.appendChild(row);
+            });
+            
+            // Attacher les événements aux boutons
+            attachButtonEvents();
+        }
+        
+        // Fonction pour obtenir le libellé du type
+        function getTypeLabel(type) {
+            const types = {
+                'desktop': 'Ordinateur de bureau',
+                'laptop': 'Ordinateur portable',
+                'screen': 'Écran'
+            };
+            return types[type] || type;
+        }
+        
+        // Fonction pour filtrer les matériels
+        function filterMaterials() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedType = typeFilter.value;
+            
+            const filteredMaterials = materials.filter(material => {
+                const matchesSearch = material.name.toLowerCase().includes(searchTerm) || 
+                                     material.description.toLowerCase().includes(searchTerm);
+                const matchesType = selectedType === 'all' || material.type === selectedType;
+                
+                return matchesSearch && matchesType;
+            });
+            
+            renderMaterials(filteredMaterials);
+        }
+        
+        // Fonction pour ouvrir le modal d'ajout/édition
+        function openModal(materialId = null) {
+            modalTitle.textContent = materialId ? 'Modifier le matériel' : 'Ajouter un matériel';
+            
+            // Réinitialiser le formulaire
+            materialForm.reset();
+            document.getElementById('materialId').value = '';
+            
+            // Si c'est une édition, remplir le formulaire
+            if (materialId) {
+                const material = materials.find(m => m.id === parseInt(materialId));
+                if (material) {
+                    document.getElementById('materialId').value = material.id;
+                    document.getElementById('materialName').value = material.name;
+                    document.getElementById('materialType').value = material.type;
+                    document.getElementById('materialAvailable').value = material.available;
+                    document.getElementById('materialTotal').value = material.total;
+                    document.getElementById('materialDescription').value = material.description;
+                }
+            }
+            
+            // Afficher le modal
+            modal.style.display = 'block';
+        }
+        
+        // Fonction pour fermer le modal
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+        
+        // Fonction pour attacher les événements aux boutons
+        function attachButtonEvents() {
+            // Boutons d'édition
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const materialId = this.getAttribute('data-id');
+                    openModal(materialId);
+                });
+            });
+            
+            // Boutons de suppression
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const materialId = parseInt(this.getAttribute('data-id'));
+                    if (confirm('Êtes-vous sûr de vouloir supprimer ce matériel ?')) {
+                        // Simuler la suppression (à remplacer par un appel API)
+                        const index = materials.findIndex(m => m.id === materialId);
+                        if (index !== -1) {
+                            materials.splice(index, 1);
+                            filterMaterials();
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Événement pour ouvrir le modal d'ajout
+        addMaterialBtn.addEventListener('click', function() {
+            openModal();
+        });
+        
+        // Événement pour fermer le modal
+        document.querySelector('.modal .close').addEventListener('click', closeModal);
+        
+        // Événement pour soumettre le formulaire
+        materialForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const materialId = document.getElementById('materialId').value;
+            const materialData = {
+                name: document.getElementById('materialName').value,
+                type: document.getElementById('materialType').value,
+                available: parseInt(document.getElementById('materialAvailable').value),
+                total: parseInt(document.getElementById('materialTotal').value),
+                description: document.getElementById('materialDescription').value
+            };
+            
+            if (materialId) {
+                // Mise à jour d'un matériel existant
+                const index = materials.findIndex(m => m.id === parseInt(materialId));
+                if (index !== -1) {
+                    materials[index] = { ...materials[index], ...materialData };
+                }
+            } else {
+                // Ajout d'un nouveau matériel
+                const newId = Math.max(...materials.map(m => m.id)) + 1;
+                materials.push({ id: newId, ...materialData });
+            }
+            
+            // Fermer le modal et mettre à jour l'affichage
+            closeModal();
+            filterMaterials();
+        });
+        
+        // Événements pour le filtrage
+        searchInput.addEventListener('input', filterMaterials);
+        typeFilter.addEventListener('change', filterMaterials);
+        
+        // Afficher tous les matériels au chargement
+        renderMaterials(materials);
+    });
+</script>
+{% endblock %}

@@ -549,7 +549,7 @@ def get_notifications():
                 "metadata": {"test_id": i, "source": "simulation"}
             }
             notifications.append(notification)
-            
+           
         return jsonify({"notifications": notifications})
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des notifications: {str(e)}")
