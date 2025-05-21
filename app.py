@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, redirect, url_for, request, flash
+from flask import Flask, render_template, jsonify, redirect, url_for, request, flash, make_response
 import os
 import sys
 import traceback
@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import logging
 import json
 import time 
+from functools import wraps
 
 # Imports pour l'authentification
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user  # type: ignore
@@ -52,6 +53,17 @@ MATERIALS = [
     {"id": 5, "name": "ThinkPad X1", "type": "laptop", "available": 4, "total": 10, "description": "Ordinateur portable ThinkPad X1"},
     {"id": 6, "name": "ThinkPad T14", "type": "laptop", "available": 6, "total": 12, "description": "Ordinateur portable ThinkPad T14"}
 ]
+
+# Décorateur pour restreindre l'accès aux administrateurs uniquement
+def admin_required(f):
+    """Décorateur pour restreindre l'accès aux administrateurs uniquement."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin():
+            flash("Accès restreint aux administrateurs uniquement.", "error")
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Calcul du total
 def calculate_total_materials():
@@ -661,13 +673,9 @@ def reload_lua_module(module_name):
 # Nouvelle page admin pour les modules Lua
 @app.route("/admin/lua-modules")
 @login_required
+@admin_required
 def lua_modules_admin_page():
     """Page d'administration des modules Lua."""
-    # Vérifier si l'utilisateur est admin
-    if not current_user.is_admin():
-        flash("Vous n'avez pas l'autorisation d'accéder à cette page.", "error")
-        return redirect(url_for('dashboard'))
-        
     try:
         if lua_integration and hasattr(lua_integration, 'modules'):
             modules = list(lua_integration.modules.keys())
@@ -679,6 +687,231 @@ def lua_modules_admin_page():
         traceback.print_exc()
         return render_template('error.html', error="Erreur sur la page d'administration Lua")
 
+# Routes pour la gestion des stocks (admin uniquement)
+@app.route("/admin/stock-management")
+@login_required
+@admin_required
+def stock_management():
+    """Page d'administration pour la gestion des stocks."""
+    try:
+        # Récupérer les données des matériels depuis les données existantes
+        materials = MATERIALS  # Utilise les données de matériels existantes
+        
+        return render_template('admin/stock_management.html', materials=materials)
+    except Exception as e:
+        logger.error(f"Erreur sur la page de gestion des stocks: {str(e)}")
+        traceback.print_exc()
+        return render_template('error.html', error="Erreur sur la page de gestion des stocks")
+
+# API pour gérer les matériels (admin uniquement)
+@app.route("/api/admin/materials", methods=["GET", "POST", "PUT", "DELETE"])
+@login_required
+@admin_required
+def api_admin_materials():
+    """API pour gérer les matériels (admin uniquement)."""
+    try:
+        # GET: Récupérer tous les matériels
+        if request.method == "GET":
+            return jsonify(MATERIALS)
+        
+        # POST: Ajouter un nouveau matériel
+        elif request.method == "POST":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation des données
+            if not all(key in data for key in ["name", "type", "available", "total"]):
+                return jsonify({"error": "Données incomplètes"}), 400
+            
+            # Créer un nouvel ID pour le matériel
+            new_id = max([m["id"] for m in MATERIALS]) + 1
+            
+            # Créer le nouveau matériel
+            new_material = {
+                "id": new_id,
+                "name": data["name"],
+                "type": data["type"],
+                "available": int(data["available"]),
+                "total": int(data["total"]),
+                "description": data.get("description", "")
+            }
+            
+            # Ajouter à la liste
+            MATERIALS.append(new_material)
+            
+            return jsonify({"success": True, "material": new_material})
+        
+        # PUT: Mettre à jour un matériel existant
+        elif request.method == "PUT":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation de l'ID
+            if "id" not in data:
+                return jsonify({"error": "ID du matériel requis"}), 400
+            
+            # Trouver le matériel à mettre à jour
+            for i, material in enumerate(MATERIALS):
+                if material["id"] == data["id"]:
+                    # Mettre à jour les champs
+                    MATERIALS[i]["name"] = data.get("name", material["name"])
+                    MATERIALS[i]["type"] = data.get("type", material["type"])
+                    MATERIALS[i]["available"] = int(data.get("available", material["available"]))
+                    MATERIALS[i]["total"] = int(data.get("total", material["total"]))
+                    MATERIALS[i]["description"] = data.get("description", material["description"])
+                    
+                    return jsonify({"success": True, "material": MATERIALS[i]})
+            
+            return jsonify({"error": f"Matériel avec ID {data['id']} non trouvé"}), 404
+        
+        # DELETE: Supprimer un matériel
+        elif request.method == "DELETE":
+            # Vérifier si les données sont présentes
+            if not request.is_json:
+                return jsonify({"error": "Les données doivent être au format JSON"}), 400
+            
+            data = request.json
+            
+            # Validation de l'ID
+            if "id" not in data:
+                return jsonify({"error": "ID du matériel requis"}), 400
+            
+            # Trouver et supprimer le matériel
+            for i, material in enumerate(MATERIALS):
+                if material["id"] == data["id"]:
+                    del MATERIALS[i]
+                    return jsonify({"success": True})
+            
+            return jsonify({"error": f"Matériel avec ID {data['id']} non trouvé"}), 404
+            
+    except Exception as e:
+        logger.error(f"Erreur API materials: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": "Erreur serveur: " + str(e)}), 500
+
+# Routes pour l'importation/exportation CSV
+@app.route("/api/admin/materials/import", methods=["POST"])
+@login_required
+@admin_required
+def api_admin_materials_import():
+    """API pour importer des matériels depuis un CSV (admin uniquement)."""
+    try:
+        # Vérifier si un fichier a été envoyé
+        if 'file' not in request.files:
+            return jsonify({"error": "Aucun fichier n'a été envoyé"}), 400
+        
+        file = request.files['file']
+        
+        # Vérifier si le fichier est vide
+        if file.filename == '':
+            return jsonify({"error": "Nom de fichier vide"}), 400
+        
+        # Vérifier l'extension
+        if not file.filename.endswith('.csv'):
+            return jsonify({"error": "Le fichier doit être au format CSV"}), 400
+        
+        # Lire le contenu du fichier
+        content = file.read().decode('utf-8')
+        lines = content.split('\n')
+        
+        # Traiter les lignes
+        imported_materials = []
+        next_id = max([m["id"] for m in MATERIALS]) + 1
+        
+        for i in range(1, len(lines)):
+            line = lines[i].strip()
+            if line:
+                columns = line.split(',')
+                
+                if len(columns) >= 4:
+                    # Créer un nouveau matériel
+                    new_material = {
+                        "id": next_id,
+                        "name": columns[0].strip(),
+                        "type": columns[1].strip(),
+                        "available": int(columns[2]) if columns[2].strip().isdigit() else 0,
+                        "total": int(columns[3]) if columns[3].strip().isdigit() else 0,
+                        "description": columns[4].strip() if len(columns) > 4 else ""
+                    }
+                    
+                    # Valider le type
+                    if new_material["type"] not in ["desktop", "laptop", "screen"]:
+                        new_material["type"] = "desktop"  # Type par défaut
+                    
+                    # Valider les quantités
+                    if new_material["available"] > new_material["total"]:
+                        new_material["available"] = new_material["total"]
+                    
+                    MATERIALS.append(new_material)
+                    imported_materials.append(new_material)
+                    next_id += 1
+        
+        return jsonify({
+            "success": True, 
+            "count": len(imported_materials),
+            "materials": imported_materials
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur importation CSV: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": "Erreur serveur: " + str(e)}), 500
+
+@app.route("/api/admin/materials/export", methods=["GET"])
+@login_required
+@admin_required
+def api_admin_materials_export():
+    """API pour exporter les matériels en CSV (admin uniquement)."""
+    try:
+        # Filtrage optionnel
+        type_filter = request.args.get('type', 'all')
+        status_filter = request.args.get('status', 'all')
+        
+        # Filtrer les matériels
+        filtered_materials = MATERIALS
+        
+        # Filtrer par type
+        if type_filter != 'all':
+            filtered_materials = [m for m in filtered_materials if m["type"] == type_filter]
+        
+        # Filtrer par statut
+        if status_filter == 'lowstock':
+            filtered_materials = [m for m in filtered_materials if 
+                                 m["available"] > 0 and 
+                                 m["available"] / m["total"] < 0.2]
+        elif status_filter == 'outofstock':
+            filtered_materials = [m for m in filtered_materials if m["available"] == 0]
+        elif status_filter == 'instock':
+            filtered_materials = [m for m in filtered_materials if
+                                 m["available"] / m["total"] >= 0.2]
+        
+        # Créer le contenu CSV
+        csv_content = "nom,type,disponible,total,description\n"
+        
+        for material in filtered_materials:
+            # Échapper les guillemets dans la description
+            description = material.get("description", "").replace('"', '""')
+            
+            csv_content += f"{material['name']},{material['type']},{material['available']},{material['total']},\"{description}\"\n"
+        
+        # Créer une réponse avec le fichier CSV
+        response = make_response(csv_content)
+        response.headers["Content-Disposition"] = "attachment; filename=materiels_export.csv"
+        response.headers["Content-Type"] = "text/csv; charset=utf-8"
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Erreur exportation CSV: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": "Erreur serveur: " + str(e)}), 500
+
 # Gestion des erreurs
 @app.errorhandler(404)
 def page_not_found(e):
@@ -687,6 +920,15 @@ def page_not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template('error.html', error="500", message="Une erreur est survenue sur le serveur. Nos équipes techniques ont été informées."), 500
+
+@app.route("/admin/inventory")  # URL différente
+@login_required
+def admin_inventory():  # Nom de fonction différent
+    if not current_user.is_admin():
+        flash("Vous n'avez pas l'autorisation d'accéder à cette page.", "error")
+        return redirect(url_for('dashboard'))
+        
+    return render_template('admin/stock_management.html')
 
 # Si ce fichier est exécuté directement, lancer l'application
 if __name__ == "__main__":
@@ -705,3 +947,6 @@ if __name__ == "__main__":
         logger.warning("L'intégration Lua n'est pas correctement initialisée")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
+
+
+    
