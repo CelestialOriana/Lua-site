@@ -224,7 +224,7 @@
                     <div class="action-buttons">
                         <!-- Utiliser des attributs data pour stocker les informations -->
                         <button class="btn allocate-btn" data-id="{{ material.id }}">Allouer</button>
-                        <a href="{{ url_for('material_usage_report') }}?material_id={{ material.id }}&amp;format=json" target="_blank" class="btn">Rapport</a>
+                        <a href="/api/reports/usage?material_id={{ material.id }}" target="_blank" class="btn">Rapport</a>
                     </div>
                 </div>
             {% endfor %}

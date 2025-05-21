@@ -52,8 +52,14 @@ local function simulate_usage_data(start_date, end_date)
 end
 
 -- Générer un rapport d'utilisation du matériel
-function ReportsGenerator:generate_material_usage_report(start_date, end_date)
+function ReportsGenerator:generate_material_usage_report(start_date, end_date, material_id)
     local usage_data = simulate_usage_data(start_date, end_date)
+    
+    -- Filtrer les données si un material_id est spécifié
+    if material_id then
+        print("Génération du rapport pour material_id: " .. material_id)
+        -- Ajouter la logique pour filtrer les données selon material_id
+    end
     
     local report = {
         title = "Rapport d'utilisation du matériel",
@@ -87,6 +93,12 @@ function ReportsGenerator:generate_material_usage_report(start_date, end_date)
             }
         }
     }
+    
+    -- Si material_id est défini, ajouter cette information au rapport
+    if material_id then
+        report.material_id = material_id
+        report.title = "Rapport d'utilisation du matériel #" .. material_id
+    end
     
     return report
 end
