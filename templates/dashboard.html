@@ -598,96 +598,163 @@
     </footer>
 
     <script>
-        // Données des matériels - encodées en JSON pour éviter les problèmes avec Jinja
-        const materialsData = JSON.parse('{{ materials|tojson|safe }}');
-        const lowStockItems = JSON.parse('{{ low_stock_items|tojson|safe }}');
+    // Données des matériels - encodées en JSON pour éviter les problèmes avec Jinja
+    const materialsData = JSON.parse('{{ materials|tojson|safe }}');
+    const lowStockItems = JSON.parse('{{ low_stock_items|tojson|safe }}');
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Récupérer les données du conteneur principal
+        const container = document.querySelector('.dashboard-container');
         
-        document.addEventListener('DOMContentLoaded', function() {
-            // Récupérer les données du conteneur principal
-            const container = document.querySelector('.dashboard-container');
-            const totalMaterials = parseInt(container.dataset.totalMaterials) || 0;
-            const availableMaterials = parseInt(container.dataset.availableMaterials) || 0;
-            const materialTypes = parseInt(container.dataset.materialTypes) || 0;
-            const lowStockCount = parseInt(container.dataset.lowStockCount) || 0;
+        // Vérifier que le conteneur existe
+        if (!container) {
+            console.error("Conteneur dashboard-container non trouvé");
+            return;
+        }
+        
+        // Log pour débogage
+        console.log("Récupération des données du tableau de bord");
+        
+        // Récupérer et convertir les valeurs en nombres entiers, avec une valeur par défaut de 0 si non défini
+        const totalMaterials = parseInt(container.dataset.totalMaterials) || 0;
+        const availableMaterials = parseInt(container.dataset.availableMaterials) || 0;
+        const materialTypes = parseInt(container.dataset.materialTypes) || 0;
+        const lowStockCount = parseInt(container.dataset.lowStockCount) || 0;
+        
+        // Log pour débogage - afficher les valeurs récupérées
+        console.log("Données chargées:", {
+            totalMaterials: totalMaterials,
+            availableMaterials: availableMaterials,
+            materialTypes: materialTypes,
+            lowStockCount: lowStockCount
+        });
+        
+        // Mettre à jour les widgets dans l'aperçu des stocks
+        // 1. Types de matériel
+        const widgetMaterialTypes = document.getElementById('widgetMaterialTypes');
+        if (widgetMaterialTypes) {
+            widgetMaterialTypes.textContent = materialTypes;
+            console.log("Types de matériel mis à jour:", materialTypes);
+        } else {
+            console.error("Élément widgetMaterialTypes non trouvé");
+        }
+        
+        // 2. Disponibles / Total
+        const widgetAvailable = document.getElementById('widgetAvailable');
+        if (widgetAvailable) {
+            widgetAvailable.textContent = `${availableMaterials}/${totalMaterials}`;
+            console.log("Disponibilité mise à jour:", `${availableMaterials}/${totalMaterials}`);
+        } else {
+            console.error("Élément widgetAvailable non trouvé");
+        }
+        
+        // 3. Barre de progression et pourcentage
+        const availabilityBar = document.getElementById('availabilityProgressBar');
+        const availabilityLabel = document.getElementById('availabilityLabel');
+        
+        if (availabilityBar && availabilityLabel) {
+            // Calculer le pourcentage, éviter la division par zéro
+            const availabilityPercentage = totalMaterials > 0 
+                ? Math.round((availableMaterials / totalMaterials) * 100) 
+                : 0;
             
-            // Mettre à jour les statistiques
-            document.getElementById('totalMaterials').textContent = totalMaterials;
-            document.getElementById('availableMaterials').textContent = availableMaterials;
-            document.getElementById('materialTypes').textContent = materialTypes;
+            console.log("Pourcentage de disponibilité calculé:", availabilityPercentage + "%");
             
-            // Afficher le nombre d'éléments en stock limité s'il y en a
-            if (lowStockCount > 0) {
-                document.getElementById('lowStockCount').textContent = lowStockCount;
-                document.getElementById('lowStockCard').style.display = 'block';
-                document.getElementById('lowStockWidget').style.display = 'block';
-                document.getElementById('lowStockSection').style.display = 'block';
-            }
-            
-            // Mettre à jour les valeurs du widget
-            document.getElementById('widgetMaterialTypes').textContent = materialTypes;
-            document.getElementById('widgetAvailable').textContent = `${availableMaterials}/${totalMaterials}`;
-            
-            // Calculer et afficher le pourcentage de disponibilité
-            const availabilityPercentage = Math.round((availableMaterials / totalMaterials) * 100);
-            const availabilityBar = document.getElementById('availabilityProgressBar');
-            const availabilityLabel = document.getElementById('availabilityLabel');
-            
+            // Mettre à jour la largeur de la barre de progression
             availabilityBar.style.width = availabilityPercentage + '%';
+            
+            // Mettre à jour le texte du pourcentage
             availabilityLabel.textContent = availabilityPercentage + '% disponible';
             
             // Couleur selon disponibilité
             if (availabilityPercentage < 20) {
-                availabilityBar.style.backgroundColor = '#e74c3c';
+                availabilityBar.style.backgroundColor = '#e74c3c'; // Rouge
             } else if (availabilityPercentage < 50) {
-                availabilityBar.style.backgroundColor = '#f39c12';
+                availabilityBar.style.backgroundColor = '#f39c12'; // Orange
             } else {
-                availabilityBar.style.backgroundColor = '#2ecc71';
+                availabilityBar.style.backgroundColor = '#2ecc71'; // Vert
+            }
+        } else {
+            console.error("Éléments de barre de progression non trouvés");
+        }
+        
+        // Afficher le nombre d'éléments en stock limité s'il y en a
+        if (lowStockCount > 0) {
+            // Gestion du widget de stock faible
+            const lowStockWidget = document.getElementById('lowStockWidget');
+            if (lowStockWidget) {
+                lowStockWidget.style.display = 'block';
+                console.log("Widget de stock faible affiché");
+            }
+            
+            // Gestion de la section des stocks limités
+            const lowStockSection = document.getElementById('lowStockSection');
+            if (lowStockSection) {
+                lowStockSection.style.display = 'block';
+                console.log("Section de stock faible affichée");
             }
             
             // Remplir la liste des matériels en stock limité
             if (lowStockItems && lowStockItems.length > 0) {
                 const lowStockList = document.getElementById('lowStockList');
-                lowStockItems.forEach(item => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span>${item.name}</span>
-                        <span class="low-stock">${item.available}/${item.total}</span>
-                    `;
-                    lowStockList.appendChild(li);
-                });
+                if (lowStockList) {
+                    // Vider la liste d'abord
+                    lowStockList.innerHTML = '';
+                    
+                    // Remplir avec les éléments en stock limité
+                    lowStockItems.forEach(item => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${item.name}</span>
+                            <span class="low-stock">${item.available}/${item.total}</span>
+                        `;
+                        lowStockList.appendChild(li);
+                    });
+                    console.log(`${lowStockItems.length} éléments ajoutés à la liste des stocks faibles`);
+                }
                 
                 // Remplir la section des matériels en stock limité
                 const lowStockGrid = document.getElementById('lowStockGrid');
-                lowStockItems.forEach((item, index) => {
-                    const card = document.createElement('div');
-                    card.className = 'material-card card-with-border fade-in-up';
-                    card.dataset.type = item.type;
-                    card.style.animationDelay = `${0.1 * index}s`;
+                if (lowStockGrid) {
+                    // Vider la grille d'abord
+                    lowStockGrid.innerHTML = '';
                     
-                    const percentage = Math.round((item.available / item.total) * 100);
-                    
-                    card.innerHTML = `
-                        <div class="material-name">${item.name}</div>
-                        <div class="material-type">${item.type === 'desktop' ? 'Bureau' : 'Portable'}</div>
-                        <div class="material-stats">
-                            <span>Disponible:</span>
-                            <span class="low-stock">
-                                ${item.available} / ${item.total}
-                            </span>
-                        </div>
-                        <div>
-                            <div class="progress">
-                                <div class="progress-bar" style="width: ${percentage}%"></div>
+                    lowStockItems.forEach((item, index) => {
+                        const card = document.createElement('div');
+                        card.className = 'material-card card-with-border fade-in-up';
+                        card.dataset.type = item.type;
+                        card.style.animationDelay = `${0.1 * index}s`;
+                        
+                        const percentage = Math.round((item.available / item.total) * 100);
+                        
+                        card.innerHTML = `
+                            <div class="material-name">${item.name}</div>
+                            <div class="material-type">${item.type === 'desktop' ? 'Bureau' : 'Portable'}</div>
+                            <div class="material-stats">
+                                <span>Disponible:</span>
+                                <span class="low-stock">
+                                    ${item.available} / ${item.total}
+                                </span>
                             </div>
-                        </div>
-                    `;
-                    
-                    lowStockGrid.appendChild(card);
-                });
+                            <div>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        lowStockGrid.appendChild(card);
+                    });
+                }
             }
+        }
+        
+        // Remplir la grille des matériels
+        const materialsGrid = document.getElementById('materialsGrid');
+        if (materialsGrid && materialsData) {
+            // Vider la grille d'abord
+            materialsGrid.innerHTML = '';
             
-            // Remplir la grille des matériels
-            const materialsGrid = document.getElementById('materialsGrid');
             materialsData.forEach((material, index) => {
                 const card = document.createElement('div');
                 card.className = 'material-card fade-in-up';
@@ -715,9 +782,18 @@
                 materialsGrid.appendChild(card);
             });
             
-            // Thème clair/sombre
-            const themeToggle = document.getElementById('theme-toggle');
-            
+            // Attachement des événements aux boutons d'allocation
+            document.querySelectorAll('.allocate-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const materialId = this.getAttribute('data-id');
+                    allocateMaterial(materialId);
+                });
+            });
+        }
+        
+        // Thème clair/sombre
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
             // Appliquer le thème actuel
             const currentTheme = localStorage.getItem('theme') || 'light';
             if (currentTheme === 'dark') {
@@ -733,85 +809,92 @@
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 themeToggle.innerHTML = isDark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
             });
-            
-            // Boutons d'allocation
-            document.querySelectorAll('.allocate-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const materialId = this.getAttribute('data-id');
-                    allocateMaterial(materialId);
-                });
-            });
-            
-            // Boutons de rafraîchissement
-            document.querySelectorAll('.widget-refresh').forEach(button => {
-                button.addEventListener('click', function() {
-                    const widget = this.closest('.dashboard-widget');
-                    widget.querySelector('.widget-content').innerHTML = '<div class="loader"></div>';
-                    
-                    // Simuler un rechargement
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1000);
-                });
+        }
+        
+        // Boutons de rafraîchissement
+        document.querySelectorAll('.widget-refresh').forEach(button => {
+            button.addEventListener('click', function() {
+                const widget = this.closest('.dashboard-widget');
+                if (widget) {
+                    const content = widget.querySelector('.widget-content');
+                    if (content) {
+                        // Sauvegarde du contenu original
+                        const originalContent = content.innerHTML;
+                        
+                        // Afficher un indicateur de chargement
+                        content.innerHTML = '<div class="loader"></div><p style="text-align: center;">Rafraîchissement en cours...</p>';
+                        
+                        // Simuler un rechargement
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                }
             });
         });
+    });
 
-        // Filtrage des matériels
-        function filterMaterials(type) {
-            const buttons = document.querySelectorAll('.tab-button');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            const cards = document.querySelectorAll('.material-card');
-            cards.forEach(card => {
-                if (type === 'all') {
-                    card.style.display = '';
-                } else {
-                    card.style.display = card.getAttribute('data-type') === type ? '' : 'none';
-                }
-            });
+    // Filtrage des matériels
+    function filterMaterials(type) {
+        const buttons = document.querySelectorAll('.tab-button');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        
+        // Trouver le bouton actif actuel
+        const activeButton = document.querySelector(`.tab-button[onclick*="filterMaterials('${type}')"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
         }
+        
+        const cards = document.querySelectorAll('.material-card');
+        cards.forEach(card => {
+            if (type === 'all') {
+                card.style.display = '';
+            } else {
+                card.style.display = card.getAttribute('data-type') === type ? '' : 'none';
+            }
+        });
+    }
 
-        // Allocation de matériel
-        function allocateMaterial(materialId) {
-            const userId = prompt("Entrez l'ID de l'utilisateur:");
-            if (!userId) return;
-            
-            const quantity = prompt("Quantité à allouer:", "1");
-            if (!quantity) return;
-            
-            fetch('/api/allocate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    material_id: parseInt(materialId),
-                    user_id: userId,
-                    quantity: parseInt(quantity)
-                })
+    // Allocation de matériel
+    function allocateMaterial(materialId) {
+        const userId = prompt("Entrez l'ID de l'utilisateur:");
+        if (!userId) return;
+        
+        const quantity = prompt("Quantité à allouer:", "1");
+        if (!quantity) return;
+        
+        fetch('/api/allocate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                material_id: parseInt(materialId),
+                user_id: userId,
+                quantity: parseInt(quantity)
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.message || "Erreur lors de l'allocation");
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.success) {
-                    alert("Matériel alloué avec succès. ID de transaction: " + data.transaction_id);
-                    window.location.reload();
-                } else {
-                    alert("Erreur: " + (data.message || "Erreur inconnue"));
-                }
-            })
-            .catch(error => {
-                console.error('Erreur:', error);
-                alert("Erreur: " + error.message);
-            });
-        }
-    </script>
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || "Erreur lors de l'allocation");
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                alert("Matériel alloué avec succès. ID de transaction: " + data.transaction_id);
+                window.location.reload();
+            } else {
+                alert("Erreur: " + (data.message || "Erreur inconnue"));
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert("Erreur: " + error.message);
+        });
+    }
+</script>
 </body>
 </html>

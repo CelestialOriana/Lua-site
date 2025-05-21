@@ -67,7 +67,7 @@ function RulesEngine:validate(operation, context)
     
     return true, nil
     ]]--
-}
+end
 
 -- Reste du code inchangé...
 function RulesEngine:add_rule(operation, rule)
